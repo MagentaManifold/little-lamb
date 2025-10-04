@@ -1,0 +1,5 @@
+let I = \x . x in
+let K = \x . \y . x in
+let S = \x . \y . \z . ((x y) (x z)) in
+
+((K S) I)

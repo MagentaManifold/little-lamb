@@ -1,0 +1,3 @@
+let M = \x . (x x) in
+let omega = (M M) in
+omega

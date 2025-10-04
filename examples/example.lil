@@ -1,0 +1,4 @@
+let I = \x . x in
+let K = \x . \y . x in
+
+((K I) I)
