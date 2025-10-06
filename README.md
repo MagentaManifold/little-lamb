@@ -1,10 +1,5 @@
 # little-lamb
 
-> [!NOTE]
-> This repo is a toy project and WIP.
-
----
-
 > Mary had a little lamb,
 >
 > little lamb, little lamb.
@@ -15,6 +10,9 @@
 
 A simple lambda calculus interpreter in Rust and Chumsky (a beautiful parser combinator library), using de Bruijn indices and normal order evaluation.
 
+> [!NOTE]
+> This repo is a toy project and is under active development.
+
 ## Syntax
 
 Pretty standard lambda calculus syntax:
@@ -22,29 +20,40 @@ Pretty standard lambda calculus syntax:
 ### Lambda expressions
 
 ```lambda
-\x . x          # identity
-\x . \y . x     # K combinator
+\x . x       -- identity
 ```
 
-No support for currying, and you can't use parenthesis around lambdas for now. E.g. `(\x . x)` is invalid.
+```lambda
+\x . \y . x  -- K combinator
+```
+
+No support for currying, and you can't use parentheses around lambdas for now. E.g., `(\x . x)` is invalid.
 
 ### Function application
 
-```lambda
-(f x)           # apply f to x
+```little-lamb
+(f x)        -- apply f to x
 ```
 
 No support for multiple arguments or omitting parenthesis for now, so `(f x y)` is invalid, and the correct syntax is `((f x) y)`.
 
 ### Let bindings
 
-```lambda
+```little-lamb
 let id = \x . x in
 let const = \x . \y . x in
 ((const id) id)
 ```
 
 `let a = <X> in <Y>` is a syntax sugar for `(\a . <Y> <X>)`
+
+### Comments
+
+Anything after `--` until the end of line is ignored. There are no comment blocks.
+
+```little-lamb
+\x . x -- this is a comment
+```
 
 ## Examples
 
@@ -112,7 +121,7 @@ are interested.
 Roughly in descending order of priority:
 
 - [ ] Syntax support for currying and multi-argument application (might want to add a lexer before parser first)
-- [ ] Syntax support for comments
+- [x] Syntax support for comments
 - [ ] Syntax support for common primitives like booleans and Church numerals.
 - [ ] Support converting results back to primitives and common combinators
 - [ ] Better error messages  
@@ -122,7 +131,6 @@ Roughly in descending order of priority:
 - [ ] Clean up tests (most are LLM generated, some isn't really helpful)
 - [ ] LSP support
 - [ ] Support [Tromp's Diagram](https://tromp.github.io/cl/diagrams.html) styled visualization or other types of graphical representation (a very ambitious goal)
-
 
 ## License
 

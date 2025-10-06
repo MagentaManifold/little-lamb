@@ -5,8 +5,8 @@ use thiserror::Error;
 pub enum EvalError {
     #[error("Undefined variable {name}")]
     UndefinedVariable { name: String },
-    #[error("Recursion limit exceeded")]
-    RecursionLimitExceeded,
+    #[error("Maximum evaluation steps exceeded")]
+    StepLimitExceeded,
 }
 
 pub fn de_bruijn(ast: &Expr, env: &mut Vec<String>) -> Result<Term, EvalError> {
@@ -120,20 +120,19 @@ pub fn eval(ast: &Expr) -> Result<Expr, EvalError> {
             return Ok(term.into());
         }
     }
-    Err(EvalError::RecursionLimitExceeded)
+    Err(EvalError::StepLimitExceeded)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::parser;
-    use chumsky::Parser;
+    use crate::parser::parse;
 
     #[test]
     fn test_de_bruijn_identity() {
         // \x. x should become \x. x#1
         let src = r"\x. x";
-        let identity = parser().parse(src).into_result().unwrap();
+        let identity = parse(src).unwrap();
         let mut env = Vec::new();
         let result = de_bruijn(&identity, &mut env).unwrap();
         println!("Identity: {} -> {}", identity, result);
@@ -145,7 +144,7 @@ mod tests {
     fn test_de_bruijn_nested() {
         // \x. \y. x should become \x. \y. x#2
         let src = r"\x. \y. x";
-        let nested = parser().parse(src).into_result().unwrap();
+        let nested = parse(src).unwrap();
         let mut env = Vec::new();
         let result = de_bruijn(&nested, &mut env).unwrap();
         println!("Nested: {} -> {}", nested, result);
@@ -156,7 +155,7 @@ mod tests {
     #[test]
     fn test_de_bruijn_simple_application() {
         let src = r"(\x. x y)";
-        let app = parser().parse(src).into_result().unwrap();
+        let app = parse(src).unwrap();
         let mut env = Vec::new();
         let result = de_bruijn(&app, &mut env);
 
@@ -170,7 +169,7 @@ mod tests {
     #[test]
     fn test_de_bruijn_with_let() {
         let src = r"let id = \x. x in id";
-        let expr = parser().parse(src).into_result().unwrap();
+        let expr = parse(src).unwrap();
         let mut env = Vec::new();
         let result = de_bruijn(&expr, &mut env).unwrap();
         println!("Let expression: {} -> {}", expr, result);
@@ -181,7 +180,7 @@ mod tests {
     #[test]
     fn test_de_bruijn_complex_nesting() {
         let src = r"\x. \x. x";
-        let expr = parser().parse(src).into_result().unwrap();
+        let expr = parse(src).unwrap();
         let mut env = Vec::new();
         let result = de_bruijn(&expr, &mut env).unwrap();
         println!("Complex nesting: {} -> {}", expr, result);
@@ -200,7 +199,7 @@ mod tests {
         let body = Term::lambda("y", Term::var("x", 1));
 
         // Create the argument: \z. z
-        let arg_expr = parser().parse(r"\z. z").into_result().unwrap();
+        let arg_expr = parse(r"\z. z").unwrap();
         let arg = de_bruijn(&arg_expr, &mut Vec::new()).unwrap();
 
         let result = beta(&body, &arg);
@@ -221,7 +220,7 @@ mod tests {
         let param_ref = Term::var("x", 0);
 
         // Create the argument: \y. y
-        let arg_expr = parser().parse(r"\y. y").into_result().unwrap();
+        let arg_expr = parse(r"\y. y").unwrap();
         let arg = de_bruijn(&arg_expr, &mut Vec::new()).unwrap();
 
         let result = beta(&param_ref, &arg);
@@ -234,7 +233,7 @@ mod tests {
     #[test]
     fn test_eval_identity() {
         let src = r"\x. x";
-        let identity = parser().parse(src).into_result().unwrap();
+        let identity = parse(src).unwrap();
         let result = eval(&identity).unwrap();
         println!("Evaluated identity: {} -> {}", identity, result);
         assert_eq!(result.to_string(), r"\x . x");
@@ -245,7 +244,7 @@ mod tests {
         // Test let id = \x. x in let f = \y. y in (id f)
         // This should reduce to \y. y
         let src = r"let id = \x. x in let f = \y. y in (id f)";
-        let app = parser().parse(src).into_result().unwrap();
+        let app = parse(src).unwrap();
         let result = eval(&app).unwrap();
         println!("Evaluated application: {} -> {}", app, result);
         assert_eq!(result.to_string(), r"\y . y");
@@ -255,7 +254,7 @@ mod tests {
     fn test_eval_church_numeral_zero() {
         // Church numeral 0: \f. \x. x
         let src = r"\f. \x. x";
-        let zero = parser().parse(src).into_result().unwrap();
+        let zero = parse(src).unwrap();
         let result = eval(&zero).unwrap();
         println!("Evaluated church 0: {} -> {}", zero, result);
         assert_eq!(result.to_string(), r"\f . \x . x");
@@ -265,7 +264,7 @@ mod tests {
     fn test_eval_church_numeral_one() {
         // Church numeral 1: \f. \x. (f x)
         let src = r"\f. \x. (f x)";
-        let one = parser().parse(src).into_result().unwrap();
+        let one = parse(src).unwrap();
         let result = eval(&one).unwrap();
         println!("Evaluated church 1: {} -> {}", one, result);
         assert_eq!(result.to_string(), r"\f . \x . (f x)");
@@ -275,7 +274,7 @@ mod tests {
     fn test_eval_higher_order_function() {
         // Test composition: let twice = \f. \x. (f (f x)) in let id = \y. y in (twice id)
         let src = r"let twice = \f. \x. (f (f x)) in let id = \y. y in (twice id)";
-        let hof = parser().parse(src).into_result().unwrap();
+        let hof = parse(src).unwrap();
         let result = eval(&hof).unwrap();
         println!("Evaluated higher-order: {} -> {}", hof, result);
         assert_eq!(result.to_string(), r"\x . x");
@@ -285,7 +284,7 @@ mod tests {
     fn test_eval_let_expression() {
         // Test let id = \x. x in (id (\y. y)) but expressed differently
         let src = r"let id = \x. x in let f = \y. y in (id f)";
-        let let_expr = parser().parse(src).into_result().unwrap();
+        let let_expr = parse(src).unwrap();
         let result = eval(&let_expr).unwrap();
         println!("Evaluated let expression: {} -> {}", let_expr, result);
         assert_eq!(result.to_string(), r"\y . y");
@@ -295,7 +294,7 @@ mod tests {
     fn test_eval_k_combinator() {
         // Test K combinator: \x. \y. x applied to something
         let src = r"let k = \x. \y. x in let a = \z. z in (k a)";
-        let k_app = parser().parse(src).into_result().unwrap();
+        let k_app = parse(src).unwrap();
         let result = eval(&k_app).unwrap();
         println!("Evaluated K combinator: {} -> {}", k_app, result);
         assert_eq!(result.to_string(), r"\y . \z . z");
@@ -305,7 +304,7 @@ mod tests {
     fn test_eval_s_combinator_partial() {
         // Test S combinator (partial application): \x. \y. \z. ((x z) (y z))
         let src = r"\x. \y. \z. ((x z) (y z))";
-        let s_comb = parser().parse(src).into_result().unwrap();
+        let s_comb = parse(src).unwrap();
         let result = eval(&s_comb).unwrap();
         println!("Evaluated S combinator: {} -> {}", s_comb, result);
         assert_eq!(result.to_string(), r"\x . \y . \z . ((x z) (y z))");
@@ -316,7 +315,7 @@ mod tests {
         // Test currying: let add = \x. \y. \f. \z. (f ((x f) ((y f) z))) in (add (\f. \x. (f x)))
         // This is a more complex example showing how curried functions work
         let src = r"let const = \x. \y. x in let one = \f. \x. (f x) in (const one)";
-        let curry = parser().parse(src).into_result().unwrap();
+        let curry = parse(src).unwrap();
         let result = eval(&curry).unwrap();
         println!("Evaluated currying: {} -> {}", curry, result);
         assert_eq!(result.to_string(), r"\y . \f . \x . (f x)");
@@ -326,7 +325,7 @@ mod tests {
     fn test_eval_complex_composition() {
         // Test function composition: let comp = \f. \g. \x. (f (g x)) in comp
         let src = r"let comp = \f. \g. \x. (f (g x)) in comp";
-        let composition = parser().parse(src).into_result().unwrap();
+        let composition = parse(src).unwrap();
         let result = eval(&composition).unwrap();
         println!("Evaluated composition: {} -> {}", composition, result);
         assert_eq!(result.to_string(), r"\f . \g . \x . (f (g x))");
