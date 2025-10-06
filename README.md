@@ -19,33 +19,34 @@ Pretty standard lambda calculus syntax:
 
 ### Lambda expressions
 
-```lambda
+```little-lamb
 \x . x       -- identity
 ```
 
-```lambda
+```little-lamb
 \x . \y . x  -- K combinator
 ```
 
-No support for currying, and you can't use parentheses around lambdas for now. E.g., `(\x . x)` is invalid.
+No support for currying for now.
 
 ### Function application
 
 ```little-lamb
-(f x)        -- apply f to x
+f x          -- apply f to x
 ```
 
-No support for multiple arguments or omitting parenthesis for now, so `(f x y)` is invalid, and the correct syntax is `((f x) y)`.
+Function application is left associative and has higher precedence than lambda (and parentheses have the highest precedence, of course).
+E.g., `\x . x x x` is equivalent to `\x . ((x x) x)`.
 
 ### Let bindings
 
 ```little-lamb
-let id = \x . x in
-let const = \x . \y . x in
-((const id) id)
+let I = \x . x in
+let K = \x . \y . x in
+K I K
 ```
 
-`let a = <X> in <Y>` is a syntax sugar for `(\a . <Y> <X>)`
+`let a = <X> in <Y>` is a syntax sugar for `(\a . <Y>) <X>`.
 
 ### Comments
 
@@ -99,22 +100,22 @@ cargo run -- /path/to/your_program.lil
 
 Pretty straightforward:
 
-- **Parser** (`src/parser.rs`): Turns `.lil` files into AST using Chumsky
 - **AST** (`src/ast.rs`): Expression/de Bruijn term types and conversions
+- **Lexer & Parser** (`src/parser.rs`): Turns plaintext files into tokens, then into AST, using Chumsky
 - **Evaluator** (`src/eval.rs`): De Bruijn conversion + beta reduction
 - **Main** (`src/main.rs`): CLI
 
 ### Evaluation
 
-1. Parse source → `Expr` AST
-2. Convert to De Bruijn indices → `Term`
-3. Beta reduce until normal form (or give up)
-4. Print result
+1. Tokenize source into `Vec<Token>`
+2. Parse tokens into `Expr` AST
+3. Convert to de Bruijn indices (`Term`)
+4. Beta reduce until normal form (or give up after step limit reached)
+5. Print result
 
 ## Contributing
 
-I'd be surpriced if anyone else would like to work on it, but let me know if you
-are interested.
+I'd be surpriced if anyone else would like to work on it, but let me know if you are interested.
 
 ## TODO
 

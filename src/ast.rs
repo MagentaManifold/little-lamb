@@ -1,34 +1,10 @@
 use std::fmt::Display;
 
-#[derive(Debug, Clone)]
-pub struct Lambda {
-    pub param: String,
-    pub body: Box<Expr>,
-}
-
-impl Display for Lambda {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\\{} . {}", self.param, self.body)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Apply {
-    pub func: Box<Expr>,
-    pub arg: Box<Expr>,
-}
-
-impl Display for Apply {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({} {})", self.func, self.arg)
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Var(String),
-    Lambda(Lambda),
-    Apply(Apply),
+    Lambda { param: String, body: Box<Expr> },
+    Apply { func: Box<Expr>, arg: Box<Expr> },
 }
 
 impl Expr {
@@ -39,18 +15,18 @@ impl Expr {
 
     /// Create a new lambda expression
     pub fn lambda(param: impl Into<String>, body: Expr) -> Self {
-        Expr::Lambda(Lambda {
+        Expr::Lambda {
             param: param.into(),
             body: Box::new(body),
-        })
+        }
     }
 
     /// Create a new application expression
     pub fn apply(func: Expr, arg: Expr) -> Self {
-        Expr::Apply(Apply {
+        Expr::Apply {
             func: Box::new(func),
             arg: Box::new(arg),
-        })
+        }
     }
 }
 
@@ -58,8 +34,18 @@ impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Expr::Var(name) => write!(f, "{name}"),
-            Expr::Lambda(lambda) => write!(f, "{lambda}"),
-            Expr::Apply(apply) => write!(f, "{apply}"),
+            Expr::Lambda { param, body } => write!(f, "\\{param} . {body}"),
+            Expr::Apply { func, arg } => {
+                let func_str = match **func {
+                    Expr::Var(_) | Expr::Apply { .. } => func.to_string(),
+                    _ => format!("({func})"),
+                };
+                let arg_str = match **arg {
+                    Expr::Var(_) => arg.to_string(),
+                    _ => format!("({arg})"),
+                };
+                write!(f, "{func_str} {arg_str}")
+            }
         }
     }
 }
@@ -109,7 +95,17 @@ impl Display for Term {
         match self {
             Term::Var { name, index } => write!(f, "{name}#{index}"),
             Term::Lambda { param, body } => write!(f, "\\{param}. {body}"),
-            Term::Apply { func, arg } => write!(f, "({func} {arg})"),
+            Term::Apply { func, arg } => {
+                let func_str = match **func {
+                    Term::Var { .. } | Term::Apply { .. } => func.to_string(),
+                    _ => format!("({func})"),
+                };
+                let arg_str = match **arg {
+                    Term::Var { .. } => arg.to_string(),
+                    _ => format!("({arg})"),
+                };
+                write!(f, "{func_str} {arg_str}")
+            }
         }
     }
 }

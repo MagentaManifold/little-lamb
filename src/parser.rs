@@ -61,18 +61,26 @@ fn token_parser<'tokens>()
     .labelled("identifier");
 
     let expr = recursive(|expr| {
+        let var = ident.clone().map(Expr::var);
+
+        let paren = expr
+            .clone()
+            .delimited_by(just(Token::LParen), just(Token::RParen))
+            .labelled("parenthesized expression");
+
+        let atom = choice((paren.clone(), var));
+
+        let apply = atom
+            .clone()
+            .foldl(atom.clone().repeated(), |acc, arg| Expr::apply(acc, arg))
+            .labelled("application");
+
         let lambda = just(Token::Lambda)
             .ignore_then(ident.clone())
             .then_ignore(just(Token::Dot))
             .then(expr.clone())
             .map(|(param, body): (String, Expr)| Expr::lambda(param, body))
             .labelled("lambda");
-
-        let apply = expr
-            .clone()
-            .then(expr.clone())
-            .delimited_by(just(Token::LParen), just(Token::RParen))
-            .map(|(func, arg)| Expr::apply(func, arg));
 
         let let_binding = just(Token::Let)
             .ignore_then(ident.clone())
@@ -84,9 +92,7 @@ fn token_parser<'tokens>()
                 Expr::apply(Expr::lambda(name, body), value)
             });
 
-        let var = ident.clone().map(|name: String| Expr::var(name));
-
-        choice((lambda, apply, let_binding, var))
+        choice((apply, lambda, let_binding, atom))
     });
 
     expr
@@ -112,7 +118,8 @@ mod tests {
     fn test_lambda() {
         let expr = r"\x. x";
         let parsed = parse(expr);
-        assert_eq!(parsed.unwrap().to_string(), r"\x . x");
+        let expected = Expr::lambda("x", Expr::var("x"));
+        assert_eq!(parsed.unwrap(), expected);
     }
 
     #[test]
@@ -122,14 +129,36 @@ mod tests {
             . x
         ";
         let parsed = parse(expr);
-        assert_eq!(parsed.unwrap().to_string(), r"\x . x");
+        let expected = Expr::lambda("x", Expr::var("x"));
+        assert_eq!(parsed.unwrap(), expected);
     }
 
     #[test]
     fn test_application() {
-        let expr = r"(\x. x y)";
+        let expr = r"\x . \y. x y";
         let parsed = parse(expr);
-        assert_eq!(parsed.unwrap().to_string(), r"(\x . x y)");
+        let expected = Expr::lambda(
+            "x",
+            Expr::lambda("y", Expr::apply(Expr::var("x"), Expr::var("y"))),
+        );
+        assert_eq!(parsed.unwrap(), expected);
+    }
+
+    #[test]
+    fn test_deep_application() {
+        let expr = r"\x . \y . \z . x y z";
+        let parsed = parse(expr);
+        let expected = Expr::lambda(
+            "x",
+            Expr::lambda(
+                "y",
+                Expr::lambda(
+                    "z",
+                    Expr::apply(Expr::apply(Expr::var("x"), Expr::var("y")), Expr::var("z")),
+                ),
+            ),
+        );
+        assert_eq!(parsed.unwrap(), expected);
     }
 
     #[test]
@@ -139,7 +168,11 @@ mod tests {
             \id . id
         ";
         let parsed = parse(expr);
-        assert_eq!(parsed.unwrap().to_string(), r"(\id . \id . id \x . x)");
+        let expected = Expr::apply(
+            Expr::lambda("id", Expr::lambda("id", Expr::var("id"))),
+            Expr::lambda("x", Expr::var("x")),
+        );
+        assert_eq!(parsed.unwrap(), expected);
     }
 
     #[test]
@@ -150,6 +183,10 @@ mod tests {
             \id . id --end comment
         ";
         let parsed = parse(expr);
-        assert_eq!(parsed.unwrap().to_string(), r"(\id . \id . id \x . x)");
+        let expected = Expr::apply(
+            Expr::lambda("id", Expr::lambda("id", Expr::var("id"))),
+            Expr::lambda("x", Expr::var("x")),
+        );
+        assert_eq!(parsed.unwrap(), expected);
     }
 }
