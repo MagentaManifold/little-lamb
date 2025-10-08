@@ -1,5 +1,6 @@
 mod ast;
 mod eval;
+mod lexer;
 mod parser;
 
 use eval::eval;

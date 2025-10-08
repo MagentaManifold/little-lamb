@@ -15,7 +15,7 @@ A simple lambda calculus interpreter in Rust and Chumsky (a beautiful parser com
 
 ## Syntax
 
-Pretty standard lambda calculus syntax:
+Pretty standard lambda calculus syntax. Indentation and line breaks are ignored.
 
 ### Lambda expressions
 
@@ -41,13 +41,34 @@ E.g., `\x . x x x` is equivalent to `\x . ((x x) x)`.
 
 ### Let bindings
 
+`let a = <X> in <Y>` is a syntax sugar for `(\a . <Y>) <X>`.
+
 ```little-lamb
 let I = \x . x in
 let K = \x y . x in
 K I K
 ```
 
-`let a = <X> in <Y>` is a syntax sugar for `(\a . <Y>) <X>`.
+Multiple let bindings can also be written using comma syntax:
+
+```little-lamb
+let
+  I = \x . x,
+  K = \x y . x, -- trailing comma is optional
+in
+K I K
+```
+
+```little-lamb
+-- Or, you can even do leading comma (inspired by Elm)
+let
+, I = \x . x
+, K = \x y . x 
+in
+K I K
+```
+
+All above are equivalent. The comma syntax supports leading and trailing commas for convenience.
 
 ### Comments
 
@@ -102,7 +123,8 @@ cargo run -- /path/to/your_program.lil
 Pretty straightforward:
 
 - **AST** (`src/ast.rs`): Expression/de Bruijn term types and conversions
-- **Lexer & Parser** (`src/parser.rs`): Turns plaintext files into tokens, then into AST, using Chumsky
+- **Lexer** (`src/lexer.rs`): Tokenizes source code into tokens
+- **Parser** (`src/parser.rs`): Parses tokens into AST using Chumsky
 - **Evaluator** (`src/eval.rs`): De Bruijn conversion + beta reduction
 - **Main** (`src/main.rs`): CLI
 
@@ -124,6 +146,7 @@ Roughly in descending order of priority:
 
 - [x] Syntax support for currying and multi-argument application
 - [x] Syntax support for comments
+- [x] Syntax support for multiple let bindings with comma
 - [ ] Syntax support for common primitives like booleans and Church numerals.
 - [ ] Support converting results back to primitives and common combinators
 - [ ] Better error messages  

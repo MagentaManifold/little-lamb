@@ -1,4 +1,6 @@
 -- this program will never end!
-let M = \x . x x in
-let omega = M M in
+let
+  M = \x . x x,
+  omega = M M,
+in
 omega

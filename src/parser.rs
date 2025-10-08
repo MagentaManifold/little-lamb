@@ -1,56 +1,6 @@
 use crate::ast::Expr;
+use crate::lexer::{Token, lexer};
 use chumsky::prelude::*;
-
-#[derive(Clone, PartialEq, Eq)]
-enum Token {
-    Lambda,
-    Dot,
-    LParen,
-    RParen,
-    Let,
-    In,
-    Equal,
-    Ident(String),
-}
-
-impl std::fmt::Debug for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Token::Lambda => write!(f, "\\"),
-            Token::Dot => write!(f, "."),
-            Token::LParen => write!(f, "("),
-            Token::RParen => write!(f, ")"),
-            Token::Let => write!(f, "let"),
-            Token::In => write!(f, "in"),
-            Token::Equal => write!(f, "="),
-            Token::Ident(name) => write!(f, "{name}"),
-        }
-    }
-}
-
-fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>, extra::Err<Rich<'src, char>>> {
-    let lambda = just('\\').to(Token::Lambda).labelled("\\");
-    let dot = just('.').to(Token::Dot).labelled(".");
-    let lparen = just('(').to(Token::LParen).labelled("(");
-    let rparen = just(')').to(Token::RParen).labelled(")");
-    let let_kw = just("let").to(Token::Let).labelled("let");
-    let in_kw = just("in").to(Token::In).labelled("in");
-    let equal = just('=').to(Token::Equal).labelled("=");
-    let ident = text::ascii::ident()
-        .map(|s: &str| Token::Ident(s.to_string()))
-        .labelled("identifier");
-    let comment = just("--")
-        .ignore_then(any().and_is(just("\n").not()).repeated())
-        .padded()
-        .labelled("comment");
-
-    choice((lambda, dot, lparen, rparen, let_kw, in_kw, equal, ident))
-        .padded_by(comment.repeated())
-        .padded()
-        .repeated()
-        .at_least(1)
-        .collect()
-}
 
 #[allow(clippy::let_and_return)]
 fn token_parser<'tokens>()
@@ -87,16 +37,31 @@ fn token_parser<'tokens>()
             })
             .labelled("lambda");
 
-        let let_binding = just(Token::Let)
-            .ignore_then(ident.clone())
+        let assign = ident
+            .clone()
             .then_ignore(just(Token::Equal))
-            .then(expr.clone())
+            .then(expr.clone());
+
+        let let_binding = just(Token::Let)
+            .ignore_then(
+                assign
+                    .separated_by(just(Token::Comma))
+                    .allow_leading()
+                    .allow_trailing()
+                    .at_least(1)
+                    .collect::<Vec<_>>(),
+            )
             .then_ignore(just(Token::In))
             .then(expr.clone())
-            .map(|((name, value), body): ((String, Expr), Expr)| {
-                Expr::apply(Expr::lambda(name, body), value)
-            });
-
+            .map(|(assignments, body)| {
+                assignments
+                    .into_iter()
+                    .rev()
+                    .fold(body, |acc, (name, value)| {
+                        Expr::apply(Expr::lambda(name, acc), value)
+                    })
+            })
+            .labelled("let binding");
         choice((apply, lambda, let_binding, atom))
     });
 
@@ -186,6 +151,44 @@ mod tests {
             Expr::lambda("x", Expr::var("x")),
         );
         assert_eq!(parsed.unwrap(), expected);
+    }
+
+    #[test]
+    fn test_let_binding_with_comma_trailing() {
+        let expr_comma = r"
+            let
+                I = \x. x,
+                K = \x y. x,
+            in
+            K I
+        ";
+        let expr_nested = r"
+            let I = \x. x in
+            let K = \x y. x in
+            K I
+        ";
+        let parsed_comma = parse(expr_comma);
+        let parsed_nested = parse(expr_nested);
+        assert_eq!(parsed_comma.unwrap(), parsed_nested.unwrap());
+    }
+
+    #[test]
+    fn test_let_binding_with_comma_leading() {
+        let expr_comma = r"
+            let
+            , I = \x. x
+            , K = \x y. x
+            in
+            K I
+        ";
+        let expr_nested = r"
+            let I = \x. x in
+            let K = \x y. x in
+            K I
+        ";
+        let parsed_comma = parse(expr_comma);
+        let parsed_nested = parse(expr_nested);
+        assert_eq!(parsed_comma.unwrap(), parsed_nested.unwrap());
     }
 
     #[test]

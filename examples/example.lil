@@ -1,4 +1,5 @@
-let I = \x . x in
-let K = \x y . x in
-
+let
+  I = \x . x,
+  K = \x y . x
+in
 K I K

@@ -1,7 +1,8 @@
-let true = \x y . x in
-let false = \x y . y in
-let and = \x y . x y false in
-let or = \x y . x true y in
-let not = \x . x false true in
-
+let
+  true = \x y . x,
+  false = \x y . y,
+  and = \x y . x y false,
+  or = \x y . x true y,
+  not = \x . x false true,
+in
 and (or false true) (not true)
