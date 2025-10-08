@@ -233,7 +233,7 @@ mod tests {
     fn test_eval_identity() {
         let src = r"\x. x";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\x . x").unwrap();
+        let expected = parse(r"\x. x").unwrap();
         println!("Evaluated identity: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -242,34 +242,34 @@ mod tests {
     fn test_eval_application() {
         let src = r"let id = \x. x in let f = \y. y in (id f)";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\y . y").unwrap();
+        let expected = parse(r"\y. y").unwrap();
         println!("Evaluated application: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_eval_church_numeral_zero() {
-        let src = r"\f. \x. x";
+        let src = r"\f x. x";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\f . \x . x").unwrap();
+        let expected = parse(r"\f x. x").unwrap();
         println!("Evaluated church 0: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_eval_church_numeral_one() {
-        let src = r"\f. \x. (f x)";
+        let src = r"\f x. (f x)";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\f . \x . (f x)").unwrap();
+        let expected = parse(r"\f x. (f x)").unwrap();
         println!("Evaluated church 1: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_eval_higher_order_function() {
-        let src = r"let twice = \f. \x. (f (f x)) in let id = \y. y in (twice id)";
+        let src = r"let twice = \f x. (f (f x)) in let id = \y. y in (twice id)";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\x . x").unwrap();
+        let expected = parse(r"\x. x").unwrap();
         println!("Evaluated higher-order: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -278,43 +278,47 @@ mod tests {
     fn test_eval_let_expression() {
         let src = r"let id = \x. x in let f = \y. y in (id f)";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\y . y").unwrap();
+        let expected = parse(r"\y. y").unwrap();
         println!("Evaluated let expression: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_eval_k_combinator() {
-        let src = r"let k = \x. \y. x in let a = \z. z in (k a)";
+        let src = r"let k = \x y. x in let a = \z. z in (k a)";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\y . \z . z").unwrap();
+        let expected = parse(r"\y. \z. z").unwrap();
         println!("Evaluated K combinator: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_eval_s_combinator_partial() {
-        let src = r"\x. \y. \z. (x z) (y z)";
+        let src = r"\x y z. (x z) (y z)";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\x . \y . \z . ((x z) (y z))").unwrap();
+        let expected = parse(r"\x y z. ((x z) (y z))").unwrap();
         println!("Evaluated S combinator: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_eval_currying_example() {
-        let src = r"let const = \x. \y. x in let one = \f. \x. (f x) in (const one)";
+        let src = r"
+            let const = \x y. x in
+            let one = \f x. (f x) in
+            const one
+        ";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\y . \f . \x . (f x)").unwrap();
+        let expected = parse(r"\y. \f x. (f x)").unwrap();
         println!("Evaluated currying: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_eval_complex_composition() {
-        let src = r"let comp = \f. \g. \x. (f (g x)) in comp";
+        let src = r"let comp = \f g x. (f (g x)) in comp";
         let result = parse_eval(src).unwrap();
-        let expected = parse(r"\f . \g . \x . (f (g x))").unwrap();
+        let expected = parse(r"\f g x. (f (g x))").unwrap();
         println!("Evaluated composition: {} -> {}", src, result);
         assert_eq!(result, expected);
     }

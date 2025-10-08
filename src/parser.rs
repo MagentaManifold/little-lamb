@@ -76,10 +76,15 @@ fn token_parser<'tokens>()
             .labelled("application");
 
         let lambda = just(Token::Lambda)
-            .ignore_then(ident.clone())
+            .ignore_then(ident.clone().repeated().at_least(1).collect::<Vec<_>>())
             .then_ignore(just(Token::Dot))
             .then(expr.clone())
-            .map(|(param, body): (String, Expr)| Expr::lambda(param, body))
+            .map(|(params, body)| {
+                params
+                    .iter()
+                    .rev()
+                    .fold(body, |acc, param| Expr::lambda(param, acc))
+            })
             .labelled("lambda");
 
         let let_binding = just(Token::Let)
@@ -123,6 +128,14 @@ mod tests {
     }
 
     #[test]
+    fn test_lambda_currying() {
+        let expr = r"\x y. x";
+        let parsed = parse(expr);
+        let expected = Expr::lambda("x", Expr::lambda("y", Expr::var("x")));
+        assert_eq!(parsed.unwrap(), expected);
+    }
+
+    #[test]
     fn test_multiple_lines() {
         let expr = r"
             \x
@@ -135,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_application() {
-        let expr = r"\x . \y. x y";
+        let expr = r"\x y. x y";
         let parsed = parse(expr);
         let expected = Expr::lambda(
             "x",
@@ -146,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_deep_application() {
-        let expr = r"\x . \y . \z . x y z";
+        let expr = r"\x y z. x y z";
         let parsed = parse(expr);
         let expected = Expr::lambda(
             "x",
@@ -165,7 +178,7 @@ mod tests {
     fn test_let_binding() {
         let expr = r"
             let id = \x. x in
-            \id . id
+            \id. id
         ";
         let parsed = parse(expr);
         let expected = Expr::apply(
@@ -176,11 +189,19 @@ mod tests {
     }
 
     #[test]
+    fn test_params() {
+        let expr = r"((\x. (x)))";
+        let parsed = parse(expr);
+        let expected = Expr::lambda("x", Expr::var("x"));
+        assert_eq!(parsed.unwrap(), expected);
+    }
+
+    #[test]
     fn test_comments() {
         let expr = r"
             -- this is a comment
             let id = \x. x in -- another comment
-            \id . id --end comment
+            \id. id --end comment
         ";
         let parsed = parse(expr);
         let expected = Expr::apply(

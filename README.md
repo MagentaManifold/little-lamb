@@ -24,10 +24,11 @@ Pretty standard lambda calculus syntax:
 ```
 
 ```little-lamb
-\x . \y . x  -- K combinator
+\x y . x     -- K combinator
 ```
 
-No support for currying for now.
+The currying syntax is a syntax sugar for nested lambdas.
+E.g., `\x y . x` is equivalent to `\x . \y . x`.
 
 ### Function application
 
@@ -42,7 +43,7 @@ E.g., `\x . x x x` is equivalent to `\x . ((x x) x)`.
 
 ```little-lamb
 let I = \x . x in
-let K = \x . \y . x in
+let K = \x y . x in
 K I K
 ```
 
@@ -121,7 +122,7 @@ I'd be surpriced if anyone else would like to work on it, but let me know if you
 
 Roughly in descending order of priority:
 
-- [ ] Syntax support for currying and multi-argument application (might want to add a lexer before parser first)
+- [x] Syntax support for currying and multi-argument application
 - [x] Syntax support for comments
 - [ ] Syntax support for common primitives like booleans and Church numerals.
 - [ ] Support converting results back to primitives and common combinators
