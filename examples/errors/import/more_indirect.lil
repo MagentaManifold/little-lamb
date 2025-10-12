@@ -1,0 +1,2 @@
+-- one more layer of indirection
+import indirect in indirect

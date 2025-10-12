@@ -1,0 +1,2 @@
+-- Boolean NOT operator
+\p . p false true

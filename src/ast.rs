@@ -1,5 +1,71 @@
 use std::fmt::Display;
 
+use crate::eval::{EvalError, de_bruijn};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Ast {
+    Var(String),
+    Lambda {
+        param: String,
+        body: Box<Ast>,
+    },
+    Apply {
+        func: Box<Ast>,
+        arg: Box<Ast>,
+    },
+    Let {
+        name: String,
+        value: Box<Ast>,
+        body: Box<Ast>,
+    },
+    Import {
+        module: String,
+        name: String,
+        body: Box<Ast>,
+    },
+}
+
+impl Ast {
+    /// Create a new variable AST node
+    pub fn var(name: impl Into<String>) -> Self {
+        Ast::Var(name.into())
+    }
+
+    /// Create a new lambda AST node
+    pub fn lambda(param: impl Into<String>, body: Ast) -> Self {
+        Ast::Lambda {
+            param: param.into(),
+            body: Box::new(body),
+        }
+    }
+
+    /// Create a new application AST node
+    pub fn apply(func: Ast, arg: Ast) -> Self {
+        Ast::Apply {
+            func: Box::new(func),
+            arg: Box::new(arg),
+        }
+    }
+
+    /// Create a new let binding AST node
+    pub fn let_binding(name: impl Into<String>, value: Ast, body: Ast) -> Self {
+        Ast::Let {
+            name: name.into(),
+            value: Box::new(value),
+            body: Box::new(body),
+        }
+    }
+
+    /// Create a new import AST node
+    pub fn import(module: impl Into<String>, name: impl Into<String>, body: Ast) -> Self {
+        Ast::Import {
+            module: module.into(),
+            name: name.into(),
+            body: Box::new(body),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Var(String),
@@ -50,6 +116,13 @@ impl Display for Expr {
     }
 }
 
+impl TryFrom<Expr> for Term {
+    type Error = EvalError;
+    fn try_from(expr: Expr) -> Result<Self, Self::Error> {
+        de_bruijn(&expr, &mut Vec::new())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Term {
     Var { name: String, index: usize },
@@ -80,9 +153,9 @@ impl Term {
     }
 }
 
-impl Into<Expr> for Term {
-    fn into(self) -> Expr {
-        match self {
+impl From<Term> for Expr {
+    fn from(term: Term) -> Self {
+        match term {
             Term::Var { name, .. } => Expr::var(name),
             Term::Lambda { param, body } => Expr::lambda(param, (*body).into()),
             Term::Apply { func, arg } => Expr::apply((*func).into(), (*arg).into()),
@@ -128,7 +201,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_equal() {
+    fn test_term_equal() {
         let t1 = Term::var("x", 0);
         let t2 = Term::var("y", 0);
         let t3 = Term::var("x", 1);

@@ -1,0 +1,2 @@
+-- K combinator (const function)
+\x y . x

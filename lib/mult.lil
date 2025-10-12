@@ -1,0 +1,2 @@
+-- Church numeral multiplication
+\m n f . m (n f)

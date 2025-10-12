@@ -1,4 +1,10 @@
-use crate::ast::{Expr, Term};
+use std::path::Path;
+
+use crate::{
+    ast::{Ast, Expr, Term},
+    import::ImportError,
+    import::Importer,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -7,6 +13,41 @@ pub enum EvalError {
     UndefinedVariable { name: String },
     #[error("Maximum evaluation steps exceeded")]
     StepLimitExceeded,
+    #[error(transparent)]
+    Import(#[from] ImportError),
+}
+
+/// Desugar an AST into an Expr by converting Let bindings to lambda applications
+pub fn desugar(
+    ast: Ast,
+    importer: &mut Importer,
+    file_dir: Option<&Path>,
+) -> Result<Expr, EvalError> {
+    match ast {
+        Ast::Var(name) => Ok(Expr::var(name)),
+        Ast::Lambda { param, body } => Ok(Expr::lambda(param, desugar(*body, importer, file_dir)?)),
+        Ast::Apply { func, arg } => Ok(Expr::apply(
+            desugar(*func, importer, file_dir)?,
+            desugar(*arg, importer, file_dir)?,
+        )),
+        Ast::Let { name, value, body } => Ok(desugar_let(
+            name,
+            desugar(*value, importer, file_dir)?,
+            desugar(*body, importer, file_dir)?,
+        )),
+        Ast::Import { module, name, body } => {
+            let imported_ast = importer.import(&module, file_dir)?;
+            Ok(desugar_let(
+                name,
+                imported_ast,
+                desugar(*body, importer, file_dir)?,
+            ))
+        }
+    }
+}
+
+fn desugar_let(name: String, value: Expr, body: Expr) -> Expr {
+    Expr::apply(Expr::lambda(name, body), value)
 }
 
 pub fn de_bruijn(ast: &Expr, env: &mut Vec<String>) -> Result<Term, EvalError> {
@@ -110,14 +151,12 @@ fn step_normal(term: &Term) -> Option<Term> {
     }
 }
 
-pub fn eval(ast: &Expr) -> Result<Expr, EvalError> {
-    let mut env = Vec::new();
-    let mut term = de_bruijn(ast, &mut env)?;
+pub fn eval(mut term: Term) -> Result<Term, EvalError> {
     for _ in 0..10000 {
         if let Some(next) = step_normal(&term) {
             term = next;
         } else {
-            return Ok(term.into());
+            return Ok(term);
         }
     }
     Err(EvalError::StepLimitExceeded)
@@ -125,19 +164,27 @@ pub fn eval(ast: &Expr) -> Result<Expr, EvalError> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
+    use crate::lexer::tokenize;
     use crate::parser::parse;
 
     /// Helper function to parse and convert to de Bruijn indices
     fn parse_and_de_bruijn(src: &str) -> Result<Term, EvalError> {
-        let expr = parse(src).unwrap();
+        let tokens = tokenize(src).unwrap();
+        let ast = parse(&tokens).unwrap();
+        let expr = desugar(ast, &mut Importer::new(), Some(Path::new(".")))?;
         de_bruijn(&expr, &mut Vec::new())
     }
 
     /// Helper function to parse and evaluate an expression
-    fn parse_eval(src: &str) -> Result<Expr, EvalError> {
-        let expr = parse(src).unwrap();
-        eval(&expr)
+    fn src_eval(src: &str) -> Result<Term, EvalError> {
+        let tokens = tokenize(src).unwrap();
+        let ast = parse(&tokens).unwrap();
+        let expr = desugar(ast, &mut Importer::new(), Some(Path::new(".")))?;
+        let term = de_bruijn(&expr, &mut Vec::new())?;
+        eval(term)
     }
 
     #[test]
@@ -232,8 +279,8 @@ mod tests {
     #[test]
     fn test_eval_identity() {
         let src = r"\x. x";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\x. x").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\x. x").unwrap();
         println!("Evaluated identity: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -241,8 +288,8 @@ mod tests {
     #[test]
     fn test_eval_application() {
         let src = r"let id = \x. x in let f = \y. y in (id f)";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\y. y").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\y. y").unwrap();
         println!("Evaluated application: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -250,8 +297,8 @@ mod tests {
     #[test]
     fn test_eval_church_numeral_zero() {
         let src = r"\f x. x";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\f x. x").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\f x. x").unwrap();
         println!("Evaluated church 0: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -259,8 +306,8 @@ mod tests {
     #[test]
     fn test_eval_church_numeral_one() {
         let src = r"\f x. (f x)";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\f x. (f x)").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\f x. (f x)").unwrap();
         println!("Evaluated church 1: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -268,8 +315,8 @@ mod tests {
     #[test]
     fn test_eval_higher_order_function() {
         let src = r"let twice = \f x. (f (f x)) in let id = \y. y in (twice id)";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\x. x").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\x. x").unwrap();
         println!("Evaluated higher-order: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -277,8 +324,8 @@ mod tests {
     #[test]
     fn test_eval_let_expression() {
         let src = r"let id = \x. x in let f = \y. y in (id f)";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\y. y").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\y. y").unwrap();
         println!("Evaluated let expression: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -286,8 +333,8 @@ mod tests {
     #[test]
     fn test_eval_k_combinator() {
         let src = r"let k = \x y. x in let a = \z. z in (k a)";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\y. \z. z").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\y. \z. z").unwrap();
         println!("Evaluated K combinator: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -295,8 +342,8 @@ mod tests {
     #[test]
     fn test_eval_s_combinator_partial() {
         let src = r"\x y z. (x z) (y z)";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\x y z. ((x z) (y z))").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\x y z. ((x z) (y z))").unwrap();
         println!("Evaluated S combinator: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -308,8 +355,8 @@ mod tests {
             let one = \f x. (f x) in
             const one
         ";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\y. \f x. (f x)").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\y. \f x. (f x)").unwrap();
         println!("Evaluated currying: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
@@ -317,9 +364,30 @@ mod tests {
     #[test]
     fn test_eval_complex_composition() {
         let src = r"let comp = \f g x. (f (g x)) in comp";
-        let result = parse_eval(src).unwrap();
-        let expected = parse(r"\f g x. (f (g x))").unwrap();
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\f g x. (f (g x))").unwrap();
         println!("Evaluated composition: {} -> {}", src, result);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_eval_import_as_builtin() {
+        let src = r"import I as id in id";
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\x. x").unwrap();
+        println!("Evaluated import: {} -> {}", src, result);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_eval_import_as_builtin_boolean() {
+        let src = r"
+            import true, false, and, or, not in
+            and (or false true) (not true)
+        ";
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"\x y . y").unwrap();
+        println!("Evaluated import: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
 }

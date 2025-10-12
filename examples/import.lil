@@ -1,0 +1,6 @@
+-- import from built-in lib
+import succ in
+-- import from another file
+import church_add as five in
+
+succ five

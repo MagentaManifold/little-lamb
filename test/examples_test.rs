@@ -6,7 +6,8 @@ use std::process::Command;
 /// (excluding the errors/ subdirectory) execute successfully.
 #[test]
 fn test_all_examples() {
-    let examples_dir = Path::new("examples");
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let examples_dir = Path::new(manifest_dir).join("examples");
     let errors_dir = examples_dir.join("errors");
 
     let mut example_files = Vec::new();
@@ -40,6 +41,7 @@ fn test_all_examples() {
 
         let output = Command::new("cargo")
             .args(&["run", "--", example_file.to_str().unwrap()])
+            .current_dir(manifest_dir)
             .output()
             .expect("Failed to execute cargo run");
 

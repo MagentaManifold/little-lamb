@@ -1,19 +1,30 @@
-use crate::ast::Expr;
-use crate::lexer::{Token, lexer};
+use crate::ast::Ast;
+use crate::lexer::Token;
 use chumsky::prelude::*;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+#[error("Parser errors: {0:?}")]
+pub struct ParserError(Vec<String>);
+
+impl ParserError {
+    fn new(errors: Vec<Rich<'_, Token>>) -> Self {
+        ParserError(errors.into_iter().map(|e| e.to_string()).collect())
+    }
+}
 
 #[allow(clippy::let_and_return)]
-fn token_parser<'tokens>()
--> impl Parser<'tokens, &'tokens [Token], Expr, extra::Err<Rich<'tokens, Token>>> {
+fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<Rich<'tokens, Token>>>
+{
     let ident = select! {
         Token::Ident(name) => name,
     }
     .labelled("identifier");
 
-    let expr = recursive(|expr| {
-        let var = ident.clone().map(Expr::var);
+    let ast = recursive(|ast| {
+        let var = ident.clone().map(Ast::var);
 
-        let paren = expr
+        let paren = ast
             .clone()
             .delimited_by(just(Token::LParen), just(Token::RParen))
             .labelled("parenthesized expression");
@@ -22,25 +33,25 @@ fn token_parser<'tokens>()
 
         let apply = atom
             .clone()
-            .foldl(atom.clone().repeated(), |acc, arg| Expr::apply(acc, arg))
+            .foldl(atom.clone().repeated(), |acc, arg| Ast::apply(acc, arg))
             .labelled("application");
 
         let lambda = just(Token::Lambda)
             .ignore_then(ident.clone().repeated().at_least(1).collect::<Vec<_>>())
             .then_ignore(just(Token::Dot))
-            .then(expr.clone())
+            .then(ast.clone())
             .map(|(params, body)| {
                 params
-                    .iter()
+                    .into_iter()
                     .rev()
-                    .fold(body, |acc, param| Expr::lambda(param, acc))
+                    .fold(body, |acc, param| Ast::lambda(param, acc))
             })
             .labelled("lambda");
 
         let assign = ident
             .clone()
             .then_ignore(just(Token::Equal))
-            .then(expr.clone());
+            .then(ast.clone());
 
         let let_binding = just(Token::Let)
             .ignore_then(
@@ -52,52 +63,77 @@ fn token_parser<'tokens>()
                     .collect::<Vec<_>>(),
             )
             .then_ignore(just(Token::In))
-            .then(expr.clone())
-            .map(|(assignments, body)| {
-                assignments
-                    .into_iter()
-                    .rev()
-                    .fold(body, |acc, (name, value)| {
-                        Expr::apply(Expr::lambda(name, acc), value)
-                    })
+            .then(ast.clone())
+            .map(|(bindings, body)| {
+                bindings.into_iter().rev().fold(body, |acc, (name, value)| {
+                    Ast::let_binding(name, value, acc)
+                })
             })
             .labelled("let binding");
-        choice((apply, lambda, let_binding, atom))
+
+        let import_binding = choice((
+            ident
+                .clone()
+                .then_ignore(just(Token::As))
+                .then(ident.clone()),
+            ident.clone().map(|module| (module.clone(), module)),
+        ));
+
+        let import = just(Token::Import)
+            .ignore_then(
+                import_binding
+                    .separated_by(just(Token::Comma))
+                    .allow_leading()
+                    .allow_trailing()
+                    .at_least(1)
+                    .collect::<Vec<_>>(),
+            )
+            .then_ignore(just(Token::In))
+            .then(ast.clone())
+            .map(|(bindings, body)| {
+                bindings
+                    .into_iter()
+                    .rev()
+                    .fold(body, |acc, (module, name)| Ast::import(module, name, acc))
+            })
+            .labelled("import");
+        choice((apply, lambda, let_binding, import, atom))
     });
 
-    expr
+    ast
 }
 
-pub fn parse(input: &str) -> Result<Expr, String> {
-    let tokens = lexer()
-        .parse(input)
+pub fn parse(tokens: &[Token]) -> Result<Ast, ParserError> {
+    parser()
+        .parse(tokens)
         .into_result()
-        .map_err(|errs| format!("Lexer errors: {:?}", errs))?;
-    let expr = token_parser()
-        .parse(&tokens)
-        .into_result()
-        .map_err(|errs| format!("Parser errors: {:?}", errs))?;
-    Ok(expr)
+        .map_err(ParserError::new)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lexer::tokenize;
+
+    fn tokenize_and_parse(src: &str) -> Ast {
+        let tokens = tokenize(src).unwrap();
+        parse(&tokens).unwrap()
+    }
 
     #[test]
     fn test_lambda() {
         let expr = r"\x. x";
-        let parsed = parse(expr);
-        let expected = Expr::lambda("x", Expr::var("x"));
-        assert_eq!(parsed.unwrap(), expected);
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::lambda("x", Ast::var("x"));
+        assert_eq!(parsed, expected);
     }
 
     #[test]
     fn test_lambda_currying() {
         let expr = r"\x y. x";
-        let parsed = parse(expr);
-        let expected = Expr::lambda("x", Expr::lambda("y", Expr::var("x")));
-        assert_eq!(parsed.unwrap(), expected);
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::lambda("x", Ast::lambda("y", Ast::var("x")));
+        assert_eq!(parsed, expected);
     }
 
     #[test]
@@ -106,37 +142,37 @@ mod tests {
             \x
             . x
         ";
-        let parsed = parse(expr);
-        let expected = Expr::lambda("x", Expr::var("x"));
-        assert_eq!(parsed.unwrap(), expected);
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::lambda("x", Ast::var("x"));
+        assert_eq!(parsed, expected);
     }
 
     #[test]
     fn test_application() {
         let expr = r"\x y. x y";
-        let parsed = parse(expr);
-        let expected = Expr::lambda(
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::lambda(
             "x",
-            Expr::lambda("y", Expr::apply(Expr::var("x"), Expr::var("y"))),
+            Ast::lambda("y", Ast::apply(Ast::var("x"), Ast::var("y"))),
         );
-        assert_eq!(parsed.unwrap(), expected);
+        assert_eq!(parsed, expected);
     }
 
     #[test]
     fn test_deep_application() {
         let expr = r"\x y z. x y z";
-        let parsed = parse(expr);
-        let expected = Expr::lambda(
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::lambda(
             "x",
-            Expr::lambda(
+            Ast::lambda(
                 "y",
-                Expr::lambda(
+                Ast::lambda(
                     "z",
-                    Expr::apply(Expr::apply(Expr::var("x"), Expr::var("y")), Expr::var("z")),
+                    Ast::apply(Ast::apply(Ast::var("x"), Ast::var("y")), Ast::var("z")),
                 ),
             ),
         );
-        assert_eq!(parsed.unwrap(), expected);
+        assert_eq!(parsed, expected);
     }
 
     #[test]
@@ -145,12 +181,13 @@ mod tests {
             let id = \x. x in
             \id. id
         ";
-        let parsed = parse(expr);
-        let expected = Expr::apply(
-            Expr::lambda("id", Expr::lambda("id", Expr::var("id"))),
-            Expr::lambda("x", Expr::var("x")),
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::let_binding(
+            "id",
+            Ast::lambda("x", Ast::var("x")),
+            Ast::lambda("id", Ast::var("id")),
         );
-        assert_eq!(parsed.unwrap(), expected);
+        assert_eq!(parsed, expected);
     }
 
     #[test]
@@ -167,9 +204,9 @@ mod tests {
             let K = \x y. x in
             K I
         ";
-        let parsed_comma = parse(expr_comma);
-        let parsed_nested = parse(expr_nested);
-        assert_eq!(parsed_comma.unwrap(), parsed_nested.unwrap());
+        let parsed_comma = tokenize_and_parse(expr_comma);
+        let parsed_nested = tokenize_and_parse(expr_nested);
+        assert_eq!(parsed_comma, parsed_nested);
     }
 
     #[test]
@@ -186,17 +223,63 @@ mod tests {
             let K = \x y. x in
             K I
         ";
-        let parsed_comma = parse(expr_comma);
-        let parsed_nested = parse(expr_nested);
-        assert_eq!(parsed_comma.unwrap(), parsed_nested.unwrap());
+        let parsed_comma = tokenize_and_parse(expr_comma);
+        let parsed_nested = tokenize_and_parse(expr_nested);
+        assert_eq!(parsed_comma, parsed_nested);
     }
 
     #[test]
-    fn test_params() {
+    fn test_import() {
+        let expr = r"
+            import I in
+            \x. I x
+        ";
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::import(
+            "I",
+            "I",
+            Ast::lambda("x", Ast::apply(Ast::var("I"), Ast::var("x"))),
+        );
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_import_as() {
+        let expr = r"
+            import I as id in
+            \x. id x
+        ";
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::import(
+            "I",
+            "id",
+            Ast::lambda("x", Ast::apply(Ast::var("id"), Ast::var("x"))),
+        );
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_import_multiple() {
+        let expr_comma = r"
+            import I as id, K in
+            \x y. id (K x y)
+        ";
+        let expr_nested = r"
+            import I as id in
+            import K in
+            \x y. id (K x y)
+        ";
+        let parsed_comma = tokenize_and_parse(expr_comma);
+        let parsed_nested = tokenize_and_parse(expr_nested);
+        assert_eq!(parsed_comma, parsed_nested);
+    }
+
+    #[test]
+    fn test_parens() {
         let expr = r"((\x. (x)))";
-        let parsed = parse(expr);
-        let expected = Expr::lambda("x", Expr::var("x"));
-        assert_eq!(parsed.unwrap(), expected);
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::lambda("x", Ast::var("x"));
+        assert_eq!(parsed, expected);
     }
 
     #[test]
@@ -206,11 +289,12 @@ mod tests {
             let id = \x. x in -- another comment
             \id. id --end comment
         ";
-        let parsed = parse(expr);
-        let expected = Expr::apply(
-            Expr::lambda("id", Expr::lambda("id", Expr::var("id"))),
-            Expr::lambda("x", Expr::var("x")),
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::let_binding(
+            "id",
+            Ast::lambda("x", Ast::var("x")),
+            Ast::lambda("id", Ast::var("id")),
         );
-        assert_eq!(parsed.unwrap(), expected);
+        assert_eq!(parsed, expected);
     }
 }

@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.100"
 chumsky = "0.11.1"
+include_dir = "0.7.4"
 thiserror = "2.0.17"
 
 [[test]]

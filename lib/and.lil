@@ -1,0 +1,3 @@
+-- Boolean AND operator
+import false in
+\p q . p q false
