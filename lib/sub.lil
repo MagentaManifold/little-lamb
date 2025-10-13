@@ -1,0 +1,3 @@
+-- Church numeral subtraction x - y
+import pred in
+\x y . y pred x

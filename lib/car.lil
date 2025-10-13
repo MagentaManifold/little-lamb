@@ -1,0 +1,2 @@
+-- return the first element of the given pair
+\p . p (\a b . a)

@@ -15,6 +15,7 @@ pub enum Token {
     Comma,
     Equal,
     Ident(String),
+    Natural(usize),
 }
 
 impl std::fmt::Display for Token {
@@ -32,6 +33,7 @@ impl std::fmt::Display for Token {
             Token::Comma => write!(f, ","),
             Token::Equal => write!(f, "="),
             Token::Ident(name) => write!(f, "{name}"),
+            Token::Natural(value) => write!(f, "{value}"),
         }
     }
 }
@@ -51,6 +53,13 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>, extra::Err<Rich
     let ident = text::ascii::ident()
         .map(|s: &str| Token::Ident(s.to_string()))
         .labelled("identifier");
+    let natural = text::int(10)
+        .try_map(|s: &str, span| {
+            s.parse::<usize>()
+                .map_err(|err| Rich::custom(span, err.to_string()))
+        })
+        .map(Token::Natural)
+        .labelled("natural number");
     let comment = just("--")
         .ignore_then(any().and_is(just("\n").not()).repeated())
         .padded()
@@ -58,6 +67,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>, extra::Err<Rich
 
     choice((
         lambda, dot, lparen, rparen, let_kw, import_kw, from_kw, as_kw, in_kw, equal, comma, ident,
+        natural,
     ))
     .padded_by(comment.repeated())
     .padded()

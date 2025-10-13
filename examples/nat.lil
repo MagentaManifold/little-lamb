@@ -1,0 +1,2 @@
+import mult, add, succ in
+mult (add 3 (succ 0)) 2 -- should be 8

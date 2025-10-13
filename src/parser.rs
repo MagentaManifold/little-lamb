@@ -24,12 +24,17 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
     let ast = recursive(|ast| {
         let var = ident.clone().map(Ast::var);
 
+        let nat = select! {
+            Token::Natural(value) => Ast::nat(value),
+        }
+        .labelled("natural number");
+
         let paren = ast
             .clone()
             .delimited_by(just(Token::LParen), just(Token::RParen))
             .labelled("parenthesized expression");
 
-        let atom = choice((paren.clone(), var));
+        let atom = choice((paren, var, nat));
 
         let apply = atom
             .clone()
@@ -272,6 +277,22 @@ mod tests {
         let parsed_comma = tokenize_and_parse(expr_comma);
         let parsed_nested = tokenize_and_parse(expr_nested);
         assert_eq!(parsed_comma, parsed_nested);
+    }
+
+    #[test]
+    fn test_nat() {
+        let expr = r"3";
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::nat(3);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_not_nat() {
+        let expr = r"\a1 . 1";
+        let parsed = tokenize_and_parse(expr);
+        let expected = Ast::lambda("a1", Ast::nat(1));
+        assert_eq!(parsed, expected);
     }
 
     #[test]

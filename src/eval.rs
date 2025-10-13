@@ -25,6 +25,7 @@ pub fn desugar(
 ) -> Result<Expr, EvalError> {
     match ast {
         Ast::Var(name) => Ok(Expr::var(name)),
+        Ast::Nat(num) => Ok(desugar_nat(num)),
         Ast::Lambda { param, body } => Ok(Expr::lambda(param, desugar(*body, importer, file_dir)?)),
         Ast::Apply { func, arg } => Ok(Expr::apply(
             desugar(*func, importer, file_dir)?,
@@ -44,6 +45,16 @@ pub fn desugar(
             ))
         }
     }
+}
+
+fn desugar_nat(num: usize) -> Expr {
+    Expr::lambda(
+        "f",
+        Expr::lambda(
+            "x",
+            (0..num).fold(Expr::var("x"), |acc, _| Expr::apply(Expr::var("f"), acc)),
+        ),
+    )
 }
 
 fn desugar_let(name: String, value: Expr, body: Expr) -> Expr {
@@ -185,6 +196,24 @@ mod tests {
         let expr = desugar(ast, &mut Importer::new(), Some(Path::new(".")))?;
         let term = de_bruijn(&expr, &mut Vec::new())?;
         eval(term)
+    }
+
+    #[test]
+    fn test_desugar_zero() {
+        let src = r"0";
+        let result = parse_and_de_bruijn(src).unwrap();
+        println!("Desugared 0: {} -> {}", src, result);
+        let expected = parse_and_de_bruijn(r"\f x. x").unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_desugar_two() {
+        let src = r"2";
+        let result = parse_and_de_bruijn(src).unwrap();
+        println!("Desugared 2: {} -> {}", src, result);
+        let expected = parse_and_de_bruijn(r"\f x. (f (f x))").unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]
@@ -388,6 +417,23 @@ mod tests {
         let result = src_eval(src).unwrap();
         let expected = parse_and_de_bruijn(r"\x y . y").unwrap();
         println!("Evaluated import: {} -> {}", src, result);
+        assert_eq!(result, expected);
+    }
+    #[test]
+    fn test_lib_pred() {
+        let src = r"import pred in pred 3";
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"2").unwrap();
+        println!("Evaluated: {} -> {}", src, result);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_lib_sub() {
+        let src = r"import sub in sub 5 3";
+        let result = src_eval(src).unwrap();
+        let expected = parse_and_de_bruijn(r"2").unwrap();
+        println!("Evaluated: {} -> {}", src, result);
         assert_eq!(result, expected);
     }
 }

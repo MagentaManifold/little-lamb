@@ -1,0 +1,2 @@
+-- return the second element of the given pair
+\p . p (\a b . b)

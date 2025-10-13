@@ -70,6 +70,17 @@ K I K
 
 All above are equivalent. The comma syntax supports leading and trailing commas for convenience.
 
+### Natural numbers
+
+Natural numbers are a syntax sugar for Church numeral encoding.
+
+```little-lamb
+import add in
+add 2 3
+-- evaluates to \f . \x . f (f (f (f (f x)))),
+-- i.e., 5 in Church numeral encoding
+```
+
 ### Comments
 
 Anything after `--` until the end of line is ignored. There are no comment blocks.
@@ -186,7 +197,8 @@ I'd be surprised if anyone else would like to work on it, but let me know if you
 
 Roughly in descending order of priority:
 
-- [ ] Syntax support for common encodings like booleans (done with importing) and Church numerals.
+- [x] Syntax support for common encodings like booleans (done with importing) and Church numerals.
+- [ ] Improve performance (right now `fib 5` takes 18.65s to complete)
 - [ ] Improve import system: nested directories, better error messages
 - [ ] Support converting results back to primitives and common combinators
 - [ ] Better error messages  

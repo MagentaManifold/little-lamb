@@ -1,2 +1,3 @@
 -- Boolean OR operator
+import true in
 \p q . p true q

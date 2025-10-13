@@ -5,6 +5,7 @@ use crate::eval::{EvalError, de_bruijn};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Ast {
     Var(String),
+    Nat(usize),
     Lambda {
         param: String,
         body: Box<Ast>,
@@ -29,6 +30,11 @@ impl Ast {
     /// Create a new variable AST node
     pub fn var(name: impl Into<String>) -> Self {
         Ast::Var(name.into())
+    }
+
+    /// Create a new natural number AST node
+    pub fn nat(value: usize) -> Self {
+        Ast::Nat(value)
     }
 
     /// Create a new lambda AST node

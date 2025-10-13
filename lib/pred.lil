@@ -1,0 +1,4 @@
+-- pred the inverse of succ
+-- NOTE: pred 0 is 0
+import pair, car, cdr, succ in
+\n. cdr (n (\p. pair (succ (car p)) (car p)) (pair 0 0))

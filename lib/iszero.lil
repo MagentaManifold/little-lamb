@@ -1,0 +1,3 @@
+-- Check if n is Church numeral zero
+import true, false in
+\n . n (\x . false) true
