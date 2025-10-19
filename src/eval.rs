@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    ast::{Ast, Expr, Term},
+    ast::{Ast, Expr, Term, TermInner},
     import::ImportError,
     import::Importer,
 };
@@ -87,20 +87,20 @@ pub fn de_bruijn(ast: &Expr, env: &mut Vec<String>) -> Result<Term, EvalError> {
 }
 
 fn shift(term: &Term, by: isize, cutoff: usize) -> Term {
-    match term {
-        Term::Var { name, index } => {
+    match term.inner() {
+        TermInner::Var { name, index } => {
             if *index >= cutoff {
                 let new_index = (*index as isize + by) as usize;
-                Term::var(name.clone(), new_index)
+                Term::var(name.to_string(), new_index)
             } else {
                 term.clone()
             }
         }
-        Term::Lambda { param, body } => {
+        TermInner::Lambda { param, body } => {
             let new_body = shift(body, by, cutoff + 1);
-            Term::lambda(param.clone(), new_body)
+            Term::lambda(param.to_string(), new_body)
         }
-        Term::Apply { func, arg } => {
+        TermInner::Apply { func, arg } => {
             let new_func = shift(func, by, cutoff);
             let new_arg = shift(arg, by, cutoff);
             Term::apply(new_func, new_arg)
@@ -109,8 +109,8 @@ fn shift(term: &Term, by: isize, cutoff: usize) -> Term {
 }
 
 fn subst(term: &Term, index: usize, value: &Term) -> Term {
-    match term {
-        Term::Var {
+    match term.inner() {
+        TermInner::Var {
             name: _,
             index: var_index,
         } => {
@@ -120,11 +120,11 @@ fn subst(term: &Term, index: usize, value: &Term) -> Term {
                 term.clone()
             }
         }
-        Term::Lambda { param, body } => {
+        TermInner::Lambda { param, body } => {
             let new_body = subst(body, index + 1, value);
-            Term::lambda(param.clone(), new_body)
+            Term::lambda(param.to_string(), new_body)
         }
-        Term::Apply { func, arg } => {
+        TermInner::Apply { func, arg } => {
             let new_func = subst(func, index, value);
             let new_arg = subst(arg, index, value);
             Term::apply(new_func, new_arg)
@@ -139,27 +139,27 @@ fn beta(body: &Term, arg: &Term) -> Term {
 }
 
 fn step_normal(term: &Term) -> Option<Term> {
-    match term {
-        Term::Apply { func, arg } => match func.as_ref() {
-            Term::Lambda { param: _, body } => Some(beta(body, arg)),
+    match term.inner() {
+        TermInner::Apply { func, arg } => match func.inner() {
+            TermInner::Lambda { param: _, body } => Some(beta(body, arg)),
             _ => {
                 if let Some(new_func) = step_normal(func) {
-                    Some(Term::apply(new_func, arg.as_ref().clone()))
+                    Some(Term::apply(new_func, arg.clone()))
                 } else if let Some(new_arg) = step_normal(arg) {
-                    Some(Term::apply(func.as_ref().clone(), new_arg))
+                    Some(Term::apply(func.clone(), new_arg))
                 } else {
                     None
                 }
             }
         },
-        Term::Lambda { param, body } => {
-            if let Some(new_body) = step_normal(&body) {
-                Some(Term::lambda(param.clone(), new_body))
+        TermInner::Lambda { param, body } => {
+            if let Some(new_body) = step_normal(body) {
+                Some(Term::lambda(param.to_string(), new_body))
             } else {
                 None
             }
         }
-        Term::Var { .. } => None,
+        TermInner::Var { .. } => None,
     }
 }
 
@@ -190,10 +190,10 @@ pub fn eval(mut term: Term) -> Result<Term, EvalError> {
 
 /// Helper function to estimate term size
 fn term_size(term: &Term) -> usize {
-    match term {
-        Term::Var { .. } => 1,
-        Term::Lambda { body, .. } => 1 + term_size(body),
-        Term::Apply { func, arg } => 1 + term_size(func) + term_size(arg),
+    match term.inner() {
+        TermInner::Var { .. } => 1,
+        TermInner::Lambda { body, .. } => 1 + term_size(body),
+        TermInner::Apply { func, arg } => 1 + term_size(func) + term_size(arg),
     }
 }
 

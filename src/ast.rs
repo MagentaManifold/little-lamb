@@ -130,65 +130,68 @@ impl TryFrom<Expr> for Term {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Term {
-    Var { name: String, index: usize },
-    Apply { func: Rc<Term>, arg: Rc<Term> },
-    Lambda { param: String, body: Rc<Term> },
+/// Term's internal enum that's always wrapped in Rc
+#[derive(Debug)]
+pub enum TermInner {
+    Var { name: Rc<str>, index: usize },
+    Apply { func: Term, arg: Term },
+    Lambda { param: Rc<str>, body: Term },
 }
+
+/// The Term struct represents terms in de Bruijn indexed form, wrapped in Rc
+/// for efficient cloning.
+#[derive(Debug, Clone)]
+pub struct Term(Rc<TermInner>);
 
 impl Term {
     pub fn var(name: impl Into<String>, index: usize) -> Self {
-        Term::Var {
-            name: name.into(),
+        Term(Rc::new(TermInner::Var {
+            name: name.into().into(),
             index,
-        }
+        }))
     }
 
     pub fn lambda(param: impl Into<String>, body: Term) -> Self {
-        Term::Lambda {
-            param: param.into(),
-            body: Rc::new(body),
-        }
+        Term(Rc::new(TermInner::Lambda {
+            param: param.into().into(),
+            body,
+        }))
     }
 
     pub fn apply(func: Term, arg: Term) -> Self {
-        Term::Apply {
-            func: Rc::new(func),
-            arg: Rc::new(arg),
-        }
+        Term(Rc::new(TermInner::Apply { func, arg }))
+    }
+
+    // Helper method to access the inner value
+    pub fn inner(&self) -> &TermInner {
+        &self.0
     }
 }
 
 impl From<Term> for Expr {
     fn from(term: Term) -> Self {
-        match term {
-            Term::Var { name, .. } => Expr::var(name),
-            Term::Lambda { param, body } => {
-                let body_term = Rc::try_unwrap(body).unwrap_or_else(|rc| (*rc).clone());
-                Expr::lambda(param, body_term.into())
+        match term.inner() {
+            TermInner::Var { name, .. } => Expr::var(name.to_string()),
+            TermInner::Lambda { param, body } => {
+                Expr::lambda(param.to_string(), body.clone().into())
             }
-            Term::Apply { func, arg } => {
-                let func_term = Rc::try_unwrap(func).unwrap_or_else(|rc| (*rc).clone());
-                let arg_term = Rc::try_unwrap(arg).unwrap_or_else(|rc| (*rc).clone());
-                Expr::apply(func_term.into(), arg_term.into())
-            }
+            TermInner::Apply { func, arg } => Expr::apply(func.clone().into(), arg.clone().into()),
         }
     }
 }
 
 impl Display for Term {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Term::Var { name, index } => write!(f, "{name}#{index}"),
-            Term::Lambda { param, body } => write!(f, "\\{param}. {body}"),
-            Term::Apply { func, arg } => {
-                let func_str = match **func {
-                    Term::Var { .. } | Term::Apply { .. } => func.to_string(),
+        match self.inner() {
+            TermInner::Var { name, index } => write!(f, "{name}#{index}"),
+            TermInner::Lambda { param, body } => write!(f, "\\{param}. {body}"),
+            TermInner::Apply { func, arg } => {
+                let func_str = match func.inner() {
+                    TermInner::Var { .. } | TermInner::Apply { .. } => func.to_string(),
                     _ => format!("({func})"),
                 };
-                let arg_str = match **arg {
-                    Term::Var { .. } => arg.to_string(),
+                let arg_str = match arg.inner() {
+                    TermInner::Var { .. } => arg.to_string(),
                     _ => format!("({arg})"),
                 };
                 write!(f, "{func_str} {arg_str}")
@@ -199,10 +202,19 @@ impl Display for Term {
 
 impl PartialEq for Term {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Term::Var { name: _, index: i1 }, Term::Var { name: _, index: i2 }) => i1 == i2,
-            (Term::Lambda { param: _, body: b1 }, Term::Lambda { param: _, body: b2 }) => b1 == b2,
-            (Term::Apply { func: f1, arg: a1 }, Term::Apply { func: f2, arg: a2 }) => {
+        if Rc::ptr_eq(&self.0, &other.0) {
+            return true;
+        }
+
+        match (self.inner(), other.inner()) {
+            (TermInner::Var { name: _, index: i1 }, TermInner::Var { name: _, index: i2 }) => {
+                i1 == i2
+            }
+            (
+                TermInner::Lambda { param: _, body: b1 },
+                TermInner::Lambda { param: _, body: b2 },
+            ) => b1 == b2,
+            (TermInner::Apply { func: f1, arg: a1 }, TermInner::Apply { func: f2, arg: a2 }) => {
                 f1 == f2 && a1 == a2
             }
             _ => false,

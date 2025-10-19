@@ -1,7 +1,3 @@
--- Factorial benchmark: Calculate 7!
--- Expected result: 5040 (in Church numeral encoding)
--- 7! = 7 * 6 * 5 * 4 * 3 * 2 * 1 = 5040
-
 import Y, if, iszero, pred, mult in
 let fact =
   Y (\f n . if (iszero n)

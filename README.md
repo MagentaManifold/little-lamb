@@ -198,7 +198,7 @@ I'd be surprised if anyone else would like to work on it, but let me know if you
 Roughly in descending order of priority:
 
 - [x] Syntax support for common encodings like booleans (done with importing) and Church numerals.
-- [ ] Improve performance (right now `fib 5` takes 12.5s to complete)
+- [x] Improve performance
 - [ ] Improve import system: nested directories, better error messages
 - [ ] Support converting results back to primitives and common combinators
 - [ ] Better error messages  
