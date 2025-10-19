@@ -1,0 +1,9 @@
+import Y, if, or, iszero, pred, add, sub in
+let fib =
+  Y (\f n . if (or (iszero n) (iszero (pred n)))
+    n
+    (add
+      (f (sub n 2))
+      (f (sub n 1))))
+in
+fib 7

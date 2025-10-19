@@ -12,3 +12,11 @@ thiserror = "2.0.17"
 [[test]]
 name = "examples_test"
 path = "test/examples_test.rs"
+
+[[bench]]
+name = "fib_bench"
+harness = false
+
+[[bench]]
+name = "factorial_bench"
+harness = false

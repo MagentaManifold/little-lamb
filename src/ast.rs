@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::rc::Rc;
 
 use crate::eval::{EvalError, de_bruijn};
 
@@ -132,8 +133,8 @@ impl TryFrom<Expr> for Term {
 #[derive(Debug, Clone)]
 pub enum Term {
     Var { name: String, index: usize },
-    Apply { func: Box<Term>, arg: Box<Term> },
-    Lambda { param: String, body: Box<Term> },
+    Apply { func: Rc<Term>, arg: Rc<Term> },
+    Lambda { param: String, body: Rc<Term> },
 }
 
 impl Term {
@@ -147,14 +148,14 @@ impl Term {
     pub fn lambda(param: impl Into<String>, body: Term) -> Self {
         Term::Lambda {
             param: param.into(),
-            body: Box::new(body),
+            body: Rc::new(body),
         }
     }
 
     pub fn apply(func: Term, arg: Term) -> Self {
         Term::Apply {
-            func: Box::new(func),
-            arg: Box::new(arg),
+            func: Rc::new(func),
+            arg: Rc::new(arg),
         }
     }
 }
@@ -163,8 +164,15 @@ impl From<Term> for Expr {
     fn from(term: Term) -> Self {
         match term {
             Term::Var { name, .. } => Expr::var(name),
-            Term::Lambda { param, body } => Expr::lambda(param, (*body).into()),
-            Term::Apply { func, arg } => Expr::apply((*func).into(), (*arg).into()),
+            Term::Lambda { param, body } => {
+                let body_term = Rc::try_unwrap(body).unwrap_or_else(|rc| (*rc).clone());
+                Expr::lambda(param, body_term.into())
+            }
+            Term::Apply { func, arg } => {
+                let func_term = Rc::try_unwrap(func).unwrap_or_else(|rc| (*rc).clone());
+                let arg_term = Rc::try_unwrap(arg).unwrap_or_else(|rc| (*rc).clone());
+                Expr::apply(func_term.into(), arg_term.into())
+            }
         }
     }
 }

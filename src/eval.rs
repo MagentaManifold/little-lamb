@@ -13,6 +13,8 @@ pub enum EvalError {
     UndefinedVariable { name: String },
     #[error("Maximum evaluation steps exceeded")]
     StepLimitExceeded,
+    #[error("Evaluation likely diverged")]
+    Divergence,
     #[error(transparent)]
     Import(#[from] ImportError),
 }
@@ -137,15 +139,14 @@ fn beta(body: &Term, arg: &Term) -> Term {
 }
 
 fn step_normal(term: &Term) -> Option<Term> {
-    match term.clone() {
-        Term::Apply { func, arg } => match *func {
-            Term::Lambda { param: _, body } => Some(beta(&body, &arg)),
+    match term {
+        Term::Apply { func, arg } => match func.as_ref() {
+            Term::Lambda { param: _, body } => Some(beta(body, arg)),
             _ => {
-                // Try to step the function part
-                if let Some(new_func) = step_normal(&func) {
-                    Some(Term::apply(new_func, *arg.clone()))
-                } else if let Some(new_arg) = step_normal(&arg) {
-                    Some(Term::apply((*func).clone(), new_arg))
+                if let Some(new_func) = step_normal(func) {
+                    Some(Term::apply(new_func, arg.as_ref().clone()))
+                } else if let Some(new_arg) = step_normal(arg) {
+                    Some(Term::apply(func.as_ref().clone(), new_arg))
                 } else {
                     None
                 }
@@ -163,14 +164,37 @@ fn step_normal(term: &Term) -> Option<Term> {
 }
 
 pub fn eval(mut term: Term) -> Result<Term, EvalError> {
-    for _ in 0..10000 {
+    let mut prev_size = term_size(&term);
+    let mut non_reducing_count: usize = 0;
+
+    for _ in 0..1000000 {
         if let Some(next) = step_normal(&term) {
             term = next;
+
+            let current_size = term_size(&term);
+            if current_size >= prev_size {
+                non_reducing_count += 1;
+                if non_reducing_count > 1000 {
+                    return Err(EvalError::Divergence);
+                }
+            } else {
+                non_reducing_count = 0;
+            }
+            prev_size = current_size;
         } else {
             return Ok(term);
         }
     }
     Err(EvalError::StepLimitExceeded)
+}
+
+/// Helper function to estimate term size
+fn term_size(term: &Term) -> usize {
+    match term {
+        Term::Var { .. } => 1,
+        Term::Lambda { body, .. } => 1 + term_size(body),
+        Term::Apply { func, arg } => 1 + term_size(func) + term_size(arg),
+    }
 }
 
 #[cfg(test)]
