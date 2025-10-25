@@ -8,14 +8,11 @@ fn main() {
 
     let start = Instant::now();
 
-    let _result = execute_string(src).expect("Execution failed");
+    let result = execute_string(src).expect("Execution failed");
 
     let duration = start.elapsed();
 
-    // println!(
-    //     "Result: {}...",
-    //     result.to_string()[..200.min(result.to_string().len())].to_string()
-    // );
+    println!("Result: {}", result.to_string_with_depth(20));
     println!("Benchmark complete!");
     println!("Time: {:.2?}\n", duration);
 
@@ -29,14 +26,11 @@ fn main() {
 
     let start = Instant::now();
 
-    let _result = execute_string(src).expect("Execution failed");
+    let result = execute_string(src).expect("Execution failed");
 
     let duration = start.elapsed();
 
-    // println!(
-    //     "Result: {}...",
-    //     result.to_string()[..200.min(result.to_string().len())].to_string()
-    // );
+    println!("Result: {}", result.to_string_with_depth(20));
     println!("Benchmark complete!");
     println!("Time: {:.2?}", duration);
 }

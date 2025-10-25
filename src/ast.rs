@@ -103,6 +103,36 @@ impl Expr {
     }
 }
 
+impl Expr {
+    pub fn to_string_with_depth(&self, depth: usize) -> String {
+        match self {
+            Expr::Var(name) => name.clone(),
+            Expr::Lambda { param, body } => {
+                if depth == 0 {
+                    "...".to_string()
+                } else {
+                    format!("\\{} . {}", param, body.to_string_with_depth(depth - 1))
+                }
+            }
+            Expr::Apply { func, arg } => {
+                if depth == 0 {
+                    "...".to_string()
+                } else {
+                    let func_str = match **func {
+                        Expr::Var(_) | Expr::Apply { .. } => func.to_string_with_depth(depth - 1),
+                        _ => format!("({})", func.to_string_with_depth(depth)),
+                    };
+                    let arg_str = match **arg {
+                        Expr::Var(_) => arg.to_string_with_depth(depth - 1),
+                        _ => format!("({})", arg.to_string_with_depth(depth - 1)),
+                    };
+                    format!("{} {}", func_str, arg_str)
+                }
+            }
+        }
+    }
+}
+
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
