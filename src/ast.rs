@@ -144,16 +144,16 @@ pub enum TermInner {
 pub struct Term(Rc<TermInner>);
 
 impl Term {
-    pub fn var(name: impl Into<String>, index: usize) -> Self {
+    pub fn var(name: impl Into<Rc<str>>, index: usize) -> Self {
         Term(Rc::new(TermInner::Var {
-            name: name.into().into(),
+            name: name.into(),
             index,
         }))
     }
 
-    pub fn lambda(param: impl Into<String>, body: Term) -> Self {
+    pub fn lambda(param: impl Into<Rc<str>>, body: Term) -> Self {
         Term(Rc::new(TermInner::Lambda {
-            param: param.into().into(),
+            param: param.into(),
             body,
         }))
     }
