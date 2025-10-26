@@ -1,5 +1,5 @@
-use crate::ast::Ast;
 use crate::lexer::Token;
+use crate::syntax::Ast;
 use chumsky::prelude::*;
 use thiserror::Error;
 

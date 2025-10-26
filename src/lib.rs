@@ -1,19 +1,18 @@
-pub mod ast;
 pub mod eval;
 pub mod import;
 pub mod lexer;
 pub mod parser;
+pub mod syntax;
 
 use std::path::Path;
 
 use anyhow::Error;
-use eval::{desugar, eval};
+use import::Importer;
 use lexer::tokenize;
 use parser::parse;
+use syntax::desugar;
 
-use crate::import::Importer;
-
-pub use ast::{Expr, Term};
+pub use syntax::{Expr, Term};
 
 pub fn execute_file(file_path: &Path) -> anyhow::Result<Expr> {
     let file_dir = file_path.parent().ok_or_else(|| {
@@ -27,7 +26,7 @@ pub fn execute_file(file_path: &Path) -> anyhow::Result<Expr> {
     let ast = parse(&tokens)?;
     let expr = desugar(ast, &mut Importer::new(), Some(file_dir))?;
     let term = Term::try_from(expr)?;
-    let result = eval(term)?;
+    let result = eval::eval(term)?;
     let expr = Expr::from(result);
     Ok(expr)
 }
@@ -37,7 +36,7 @@ pub fn execute_string(src: &str) -> anyhow::Result<Expr> {
     let ast = parse(&tokens)?;
     let expr = desugar(ast, &mut Importer::new(), None)?;
     let term = Term::try_from(expr)?;
-    let result = eval(term)?;
+    let result = eval::eval(term)?;
     let expr = Expr::from(result);
     Ok(expr)
 }
