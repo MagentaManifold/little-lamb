@@ -12,7 +12,7 @@ fn main() {
 
     let duration = start.elapsed();
 
-    println!("Result: {}", result);
+    println!("Result: {}", result.to_readable_string_with_depth(20));
     println!("Benchmark complete!");
     println!("Time: {:.2?}\n", duration);
 
@@ -26,7 +26,7 @@ fn main() {
 
     let duration = start.elapsed();
 
-    println!("Result: {}", result);
+    println!("Result: {}", result.to_readable_string_with_depth(20));
     println!("Benchmark complete!");
     println!("Time: {:.2?}", duration);
 }

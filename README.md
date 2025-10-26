@@ -63,7 +63,7 @@ K I K
 -- Or, you can even do leading comma (inspired by Elm)
 let
 , I = \x . x
-, K = \x y . x 
+, K = \x y . x
 in
 K I K
 ```
@@ -198,13 +198,14 @@ I'd be surprised if anyone else would like to work on it, but let me know if you
 Roughly in descending order of priority:
 
 - [x] Syntax support for common encodings like booleans (done with importing) and Church numerals.
+- [ ] Syntax support for more structures, like pairs and lists
 - [x] Improve performance
 - [ ] Improve import system: nested directories, better error messages
-- [ ] Support converting results back to primitives and common combinators
+- [ ] Support converting results back to primitives and common combinators (not perfect right now, but basically working)
 - [ ] Better error messages  
 - [ ] Support step by step evaluation
 - [ ] Support REPL
-- [ ] Add more examples
+- [ ] Add more examples/library functions
 - [ ] Clean up tests (most are LLM generated, some isn't really helpful)
 - [ ] LSP support
 - [ ] Support [Tromp's Diagram](https://tromp.github.io/cl/diagrams.html) styled visualization or other types of graphical representation (a very ambitious goal)

@@ -158,6 +158,33 @@ fn get_builtin_module_src(file: &Path) -> Result<String, ImportError> {
         })
 }
 
+/// Get the list of all library function names (without .lil extension)
+pub fn get_lib_function_names() -> Vec<&'static str> {
+    LIB_DIR
+        .files()
+        .filter_map(|f| {
+            let path = f.path();
+            if path.extension()?.to_str()? == "lil" {
+                path.file_stem()?.to_str()
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Load a library function and convert it to a Term for comparison
+pub fn load_lib_function_as_term(name: &str) -> Result<crate::ast::Term, EvalError> {
+    use crate::eval::de_bruijn;
+
+    let relative_path = PathBuf::from(format!("{}.lil", name));
+    let src = get_builtin_module_src(&relative_path)?;
+    let tokens = tokenize(&src).map_err(|err| ImportError::Tokenize(err, relative_path.clone()))?;
+    let ast = parse(&tokens).map_err(|err| ImportError::Parse(err, relative_path.clone()))?;
+    let expr = desugar(ast, &mut Importer::new(), None)?;
+    de_bruijn(&expr, &mut Vec::new())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

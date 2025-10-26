@@ -11,10 +11,9 @@ use eval::{desugar, eval};
 use lexer::tokenize;
 use parser::parse;
 
-use crate::{
-    ast::{Expr, Term},
-    import::Importer,
-};
+use crate::import::Importer;
+
+pub use ast::{Expr, Term};
 
 pub fn execute_file(file_path: &Path) -> anyhow::Result<Expr> {
     let file_dir = file_path.parent().ok_or_else(|| {

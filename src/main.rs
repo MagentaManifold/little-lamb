@@ -8,6 +8,6 @@ fn main() -> anyhow::Result<()> {
 
     let result = little_lamb::execute_file(file_path)?;
 
-    println!("{}", result.to_string_with_depth(20));
+    println!("{}", result.to_readable_string_with_depth(20));
     Ok(())
 }
