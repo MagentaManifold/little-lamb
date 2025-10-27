@@ -29,6 +29,12 @@ macro_rules! test_all_strategies {
                 let eval_fn = |term| super::krivine::eval(term);
                 $test_body(eval_fn);
             }
+
+            #[test]
+            fn [<$test_name _kn>]() {
+                let eval_fn = |term| super::kn::eval(term);
+                $test_body(eval_fn);
+            }
         }
     };
 }
