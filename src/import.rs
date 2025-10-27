@@ -6,10 +6,10 @@ use std::{
 use thiserror::Error;
 
 use crate::{
-    ast::Expr,
-    eval::{EvalError, desugar},
+    eval::EvalError,
     lexer::tokenize,
     parser::parse,
+    syntax::{Expr, desugar},
 };
 
 static LIB_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/lib");
@@ -174,7 +174,7 @@ pub fn get_lib_function_names() -> Vec<&'static str> {
 }
 
 /// Load a library function and convert it to a Term for comparison
-pub fn load_lib_function_as_term(name: &str) -> Result<crate::ast::Term, EvalError> {
+pub fn load_lib_function_as_term(name: &str) -> Result<crate::syntax::Term, EvalError> {
     use crate::eval::de_bruijn;
 
     let relative_path = PathBuf::from(format!("{}.lil", name));

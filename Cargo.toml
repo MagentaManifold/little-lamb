@@ -9,6 +9,9 @@ chumsky = "0.11.1"
 include_dir = "0.7.4"
 thiserror = "2.0.17"
 
+[dev-dependencies]
+paste = "1.0.15"
+
 [[test]]
 name = "examples_test"
 path = "test/examples_test.rs"
