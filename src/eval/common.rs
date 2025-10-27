@@ -16,6 +16,8 @@ pub enum EvalError {
     Import(#[from] ImportError),
 }
 
+pub type EvalStrategy = fn(Term) -> Result<Term, EvalError>;
+
 pub fn de_bruijn(ast: &Expr, env: &mut Vec<String>) -> Result<Term, EvalError> {
     match ast {
         Expr::Var(name) => {

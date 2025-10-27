@@ -11,15 +11,20 @@ thiserror = "2.0.17"
 
 [dev-dependencies]
 paste = "1.0.15"
+criterion = "0.7.0"
 
 [[test]]
 name = "examples_test"
 path = "test/examples_test.rs"
 
 [[bench]]
-name = "fib_bench"
+name = "substitution_bench"
 harness = false
 
 [[bench]]
-name = "factorial_bench"
+name = "krivine_bench"
+harness = false
+
+[[bench]]
+name = "kn_bench"
 harness = false

@@ -14,6 +14,8 @@ use syntax::desugar;
 
 pub use syntax::{Expr, Term};
 
+use crate::eval::common::EvalStrategy;
+
 pub fn execute_file(file_path: &Path) -> anyhow::Result<Expr> {
     let file_dir = file_path.parent().ok_or_else(|| {
         Error::msg(format!(
@@ -37,6 +39,16 @@ pub fn execute_string(src: &str) -> anyhow::Result<Expr> {
     let expr = desugar(ast, &mut Importer::new(), None)?;
     let term = Term::try_from(expr)?;
     let result = eval::eval(term)?;
+    let expr = Expr::from(result);
+    Ok(expr)
+}
+
+pub fn execute_with_strategy(src: &str, eval_fn: EvalStrategy) -> anyhow::Result<Expr> {
+    let tokens = tokenize(src)?;
+    let ast = parse(&tokens)?;
+    let expr = desugar(ast, &mut Importer::new(), None)?;
+    let term = Term::try_from(expr)?;
+    let result = eval_fn(term)?;
     let expr = Expr::from(result);
     Ok(expr)
 }

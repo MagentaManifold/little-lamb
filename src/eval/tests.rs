@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::common::{EvalError, de_bruijn};
+use super::common::{EvalError, EvalStrategy, de_bruijn};
 use crate::import::Importer;
 use crate::lexer::tokenize;
 use crate::parser::parse;
@@ -20,20 +20,17 @@ macro_rules! test_all_strategies {
         paste::paste! {
             #[test]
             fn [<$test_name _substitution>]() {
-                let eval_fn = |term| super::substitution::eval(term);
-                $test_body(eval_fn);
+                $test_body(super::substitution::eval);
             }
 
             #[test]
             fn [<$test_name _krivine>]() {
-                let eval_fn = |term| super::krivine::eval(term);
-                $test_body(eval_fn);
+                $test_body(super::krivine::eval);
             }
 
             #[test]
             fn [<$test_name _kn>]() {
-                let eval_fn = |term| super::kn::eval(term);
-                $test_body(eval_fn);
+                $test_body(super::kn::eval);
             }
         }
     };
@@ -108,12 +105,7 @@ fn test_de_bruijn_complex_nesting() {
 }
 
 // Strategy-parameterized tests
-test_all_strategies!(test_eval_identity, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_identity, |eval_fn: EvalStrategy| {
     let src = r"\x. x";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -122,12 +114,7 @@ test_all_strategies!(test_eval_identity, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_application, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_application, |eval_fn: EvalStrategy| {
     let src = r"let id = \x. x in let f = \y. y in (id f)";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -136,12 +123,7 @@ test_all_strategies!(test_eval_application, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_church_numeral_zero, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_church_numeral_zero, |eval_fn: EvalStrategy| {
     let src = r"\f x. x";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -150,12 +132,7 @@ test_all_strategies!(test_eval_church_numeral_zero, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_church_numeral_one, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_church_numeral_one, |eval_fn: EvalStrategy| {
     let src = r"\f x. (f x)";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -164,13 +141,7 @@ test_all_strategies!(test_eval_church_numeral_one, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_higher_order_function, |eval_fn: fn(
-    Term,
-)
-    -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_higher_order_function, |eval_fn: EvalStrategy| {
     let src = r"let twice = \f x. (f (f x)) in let id = \y. y in (twice id)";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -179,12 +150,7 @@ test_all_strategies!(test_eval_higher_order_function, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_let_expression, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_let_expression, |eval_fn: EvalStrategy| {
     let src = r"let id = \x. x in let f = \y. y in (id f)";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -193,12 +159,7 @@ test_all_strategies!(test_eval_let_expression, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_k_combinator, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_k_combinator, |eval_fn: EvalStrategy| {
     let src = r"let k = \x y. x in let a = \z. z in (k a)";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -207,12 +168,7 @@ test_all_strategies!(test_eval_k_combinator, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_s_combinator_partial, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_s_combinator_partial, |eval_fn: EvalStrategy| {
     let src = r"\x y z. (x z) (y z)";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -221,12 +177,7 @@ test_all_strategies!(test_eval_s_combinator_partial, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_currying_example, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_currying_example, |eval_fn: EvalStrategy| {
     let src = r"
         let const = \x y. x in
         let one = \f x. (f x) in
@@ -239,12 +190,7 @@ test_all_strategies!(test_eval_currying_example, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_complex_composition, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_complex_composition, |eval_fn: EvalStrategy| {
     let src = r"let comp = \f g x. (f (g x)) in comp";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -253,12 +199,7 @@ test_all_strategies!(test_eval_complex_composition, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_eval_import_as_builtin, |eval_fn: fn(
-    Term,
-) -> Result<
-    Term,
-    EvalError,
->| {
+test_all_strategies!(test_eval_import_as_builtin, |eval_fn: EvalStrategy| {
     let src = r"import I as id in id";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -269,7 +210,7 @@ test_all_strategies!(test_eval_import_as_builtin, |eval_fn: fn(
 
 test_all_strategies!(
     test_eval_import_as_builtin_boolean,
-    |eval_fn: fn(Term) -> Result<Term, EvalError>| {
+    |eval_fn: EvalStrategy| {
         let src = r"
         import true, false, and, or, not in
         and (or false true) (not true)
@@ -282,9 +223,7 @@ test_all_strategies!(
     }
 );
 
-test_all_strategies!(test_lib_pred, |eval_fn: fn(
-    Term,
-) -> Result<Term, EvalError>| {
+test_all_strategies!(test_lib_pred, |eval_fn: EvalStrategy| {
     let src = r"import pred in pred 3";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
@@ -293,9 +232,7 @@ test_all_strategies!(test_lib_pred, |eval_fn: fn(
     assert_eq!(result, expected);
 });
 
-test_all_strategies!(test_lib_sub, |eval_fn: fn(
-    Term,
-) -> Result<Term, EvalError>| {
+test_all_strategies!(test_lib_sub, |eval_fn: EvalStrategy| {
     let src = r"import sub in sub 5 3";
     let term = parse_and_de_bruijn(src).unwrap();
     let result = eval_fn(term).unwrap();
