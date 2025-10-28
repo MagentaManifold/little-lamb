@@ -8,10 +8,41 @@
 >
 > its fleece was white as snow...
 
-A simple lambda calculus interpreter in Rust and Chumsky (a beautiful parser combinator library), using de Bruijn indices and normal order evaluation.
+A *"blazingly fast"* lambda calculus interpreter in Rust and Chumsky (a beautiful parser combinator library), using de Bruijn indices and full-reducing Krivine machine (KN) as the default evaluation strategy.
 
 > [!NOTE]
 > This repo is a toy project and is under active development.
+
+## Usage
+
+### Prerequisites
+
+- Rust (recent version should work)
+- Cargo
+
+### Installation
+
+```bash
+# Install from git
+cargo install --git https://github.com/MagentaManifold/little-lamb
+```
+
+### Evaluate a program
+
+```bash
+little-lamb /path/to/your_program.lil
+```
+
+### Try examples
+
+Examples can be found in the `/examples` directory. Some of them don't make much sense.
+
+```bash
+# Run an example
+cargo run -- examples/example.lil
+# or run with installed binary
+little-lamb examples/example.lil
+```
 
 ## Syntax
 
@@ -111,82 +142,51 @@ The import system works as follows:
 
 Available built-in modules include:
 
-- **Combinators**: `I` (identity), `K` (constant), `S` (substitution)
-- **Boolean logic**: `true`, `false`, `and`, `or`, `not`
-- **Arithmetic**: `add`, `mult`, `succ` (successor)
+- **Combinators**: `I` (identity), `K` (constant), `S` (substitution), `Y` (fixed point)
+- **Boolean logic**: `true`, `false`, `and`, `or`, `not`, `if`
+- **Pairs**: `pair`, `car`, `cdr`
+- **Arithmetic**: `add`, `mult`, `sub`, `succ` (successor), `pred` (predecessor), `iszero`
 
 **Current limitations:**
 
 - No nested directories (only flat module structure)
 - No relative imports (`../` or `./`)
-- Does not support circular dependency
+- Circular dependencies will cause an error
 
-## Examples
-
-Examples can be found in the `/examples` directory. Some of them don't make much sense.
-
-See below for how to run them.
-
-## Usage
-
-### Prerequisites
-
-- Rust (recent version should work)
-- Cargo
-
-### Running stuff
+## Development
 
 ```bash
-# Clone the repo
-git clone https://github.com/MagentaManifold/little-lamb
-cd little-lamb
-
-# Try an example
-cargo run -- examples/example.lil
-
 # Run tests
 cargo test
 
+# Run benchmarks (uses Criterion for stats)
+cargo bench
+
 # Build release version
 cargo build --release
-
-# install little-lamb to your system
-cargo install --path .
 ```
-
-### Run your own programs
-
-```bash
-cargo run -- /path/to/your_program.lil
-```
-
-to run directly, or
-
-```bash
-little-lamb /path/to/your_program.lil
-```
-
-if you have installed the binary.
 
 ## How it works
 
-### Architecture
+### Code structure
 
-Pretty straightforward:
-
-- **AST** (`src/ast.rs`): AST/Expression/de Bruijn term types and conversions
+- **Syntax** (`src/syntax/`): AST/Expression/de Bruijn term types and conversions (`ast.rs`, `expr.rs`, `term.rs`) plus desugaring (`desugar.rs`)
 - **Lexer** (`src/lexer.rs`): Tokenizes source code into tokens
 - **Parser** (`src/parser.rs`): Parses tokens into AST using Chumsky
-- **Evaluator** (`src/eval.rs`): desugar + De Bruijn conversion + beta reduction
-- **Main** (`src/main.rs`): CLI
+- **Import** (`src/import.rs`): Handles module imports and dependency resolution
+- **Evaluator** (`src/eval/`): Multiple evaluation strategies
+  - `kn.rs`: A [Full-reducing KN machine](https://doi.org/10.1007/s10990-007-9015-z).
+  - `substitution.rs`: Naive substitution based evaluation, very slow .
+  - `krivine.rs`: A pile of incomprehensible vibe-coded crap that miraculously works. Left here only as a baseline for benchmarking.
+- **Main** (`src/main.rs`): CLI entry point
 
-### Evaluation
+### Pipeline
 
 1. Tokenize source into `Vec<Token>`
 2. Parse tokens into `Ast`
 3. Desugar AST into `Expr`
 4. Convert to de Bruijn indices (`Term`)
-5. Beta reduce until normal form (or give up after step limit reached)
+5. Eval to normal form (or give up after step limit reached)
 6. Print result
 
 ## Contributing
@@ -206,10 +206,11 @@ Roughly in descending order of priority:
 - [ ] Support step by step evaluation
 - [ ] Support REPL
 - [ ] Add more examples/library functions
-- [ ] Clean up tests (most are LLM generated, some isn't really helpful)
-- [ ] LSP support
+- [ ] Create a web demo (compile to WASM)
+- [ ] Clean up tests (most are LLM generated, some aren't really helpful)
+- [ ] LSP support (Kinda ambitious, could be another project)
 - [ ] Support [Tromp's Diagram](https://tromp.github.io/cl/diagrams.html) styled visualization or other types of graphical representation (a very ambitious goal)
 
 ## License
 
-This project is is licensed under MIT License.
+This project is licensed under MIT License.
