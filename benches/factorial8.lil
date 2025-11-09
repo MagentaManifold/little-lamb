@@ -1,7 +1,6 @@
-import Y, if, iszero, pred, mult in
-let fact =
-  Y (\f n . if (iszero n)
-    1
-    (mult (f (pred n)) n))
+import if, iszero, pred, mult in
+letrec fact = \n . if (iszero n)
+  1
+  (mult (fact (pred n)) n)
 in
 fact 8

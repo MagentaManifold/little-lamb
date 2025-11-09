@@ -61,6 +61,7 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
         let let_binding = just(Token::Let)
             .ignore_then(
                 assign
+                    .clone()
                     .separated_by(just(Token::Comma))
                     .allow_leading()
                     .allow_trailing()
@@ -75,6 +76,24 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
                 })
             })
             .labelled("let binding");
+
+        let letrec_binding = just(Token::Letrec)
+            .ignore_then(
+                assign
+                    .separated_by(just(Token::Comma))
+                    .allow_leading()
+                    .allow_trailing()
+                    .at_least(1)
+                    .collect::<Vec<_>>(),
+            )
+            .then_ignore(just(Token::In))
+            .then(ast.clone())
+            .map(|(bindings, body)| {
+                bindings.into_iter().rev().fold(body, |acc, (name, value)| {
+                    Ast::letrec_binding(name, value, acc)
+                })
+            })
+            .labelled("letrec binding");
 
         let import_binding = choice((
             ident
@@ -102,7 +121,7 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
                     .fold(body, |acc, (module, name)| Ast::import(module, name, acc))
             })
             .labelled("import");
-        choice((apply, lambda, let_binding, import, atom))
+        choice((apply, lambda, let_binding, letrec_binding, import, atom))
     });
 
     ast

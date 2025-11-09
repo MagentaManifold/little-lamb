@@ -15,6 +15,11 @@ pub enum Ast {
         value: Box<Ast>,
         body: Box<Ast>,
     },
+    Letrec {
+        name: String,
+        value: Box<Ast>,
+        body: Box<Ast>,
+    },
     Import {
         module: String,
         name: String,
@@ -52,6 +57,15 @@ impl Ast {
     /// Create a new let binding AST node
     pub fn let_binding(name: impl Into<String>, value: Ast, body: Ast) -> Self {
         Ast::Let {
+            name: name.into(),
+            value: Box::new(value),
+            body: Box::new(body),
+        }
+    }
+
+    /// Create a new letrec binding AST node
+    pub fn letrec_binding(name: impl Into<String>, value: Ast, body: Ast) -> Self {
+        Ast::Letrec {
             name: name.into(),
             value: Box::new(value),
             body: Box::new(body),

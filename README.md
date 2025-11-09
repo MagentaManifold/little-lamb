@@ -101,6 +101,19 @@ K I K
 
 All above are equivalent. The comma syntax supports leading and trailing commas for convenience.
 
+### Recursive let bindings
+
+`letrec f = <X> in ...` is a syntax sugar for `let f = Y (\f . <X>) in ...`, where `Y` is the fixed-point combinator.
+
+```little-lamb
+import if, iszero, pred, mult in
+letrec factorial =
+  \n. if (iszero n) 1 (mult n (fact (pred n)))
+in factorial 5
+```
+
+The comma syntax is also supported for multiple recursive bindings, although it's merely a syntax sugar for nested `letrec`s, so mutual recursion is not supported.
+
 ### Natural numbers
 
 Natural numbers are a syntax sugar for Church numeral encoding.

@@ -23,6 +23,11 @@ pub fn desugar(
             desugar(*value, importer, file_dir)?,
             desugar(*body, importer, file_dir)?,
         )),
+        Ast::Letrec { name, value, body } => Ok(desugar_letrec(
+            name,
+            desugar(*value, importer, file_dir)?,
+            desugar(*body, importer, file_dir)?,
+        )),
         Ast::Import { module, name, body } => {
             let imported_ast = importer.import(&module, file_dir)?;
             Ok(desugar_let(
@@ -46,4 +51,12 @@ fn desugar_nat(num: usize) -> Expr {
 
 fn desugar_let(name: String, value: Expr, body: Expr) -> Expr {
     Expr::apply(Expr::lambda(name, body), value)
+}
+
+fn desugar_letrec(name: String, value: Expr, body: Expr) -> Expr {
+    desugar_let(
+        name.clone(),
+        Expr::apply(Expr::y_comb(), Expr::lambda(name, value)),
+        body,
+    )
 }

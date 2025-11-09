@@ -31,6 +31,23 @@ impl Expr {
             arg: Box::new(arg),
         }
     }
+
+    /// Create the Y combinator expression
+    pub fn y_comb() -> Self {
+        Expr::lambda(
+            "f",
+            Expr::apply(
+                Expr::lambda(
+                    "x",
+                    Expr::apply(Expr::var("f"), Expr::apply(Expr::var("x"), Expr::var("x"))),
+                ),
+                Expr::lambda(
+                    "x",
+                    Expr::apply(Expr::var("f"), Expr::apply(Expr::var("x"), Expr::var("x"))),
+                ),
+            ),
+        )
+    }
 }
 
 impl Expr {

@@ -43,13 +43,46 @@ impl Term {
 
 impl From<Term> for Expr {
     fn from(term: Term) -> Self {
-        match term.inner() {
-            TermInner::Var { name, .. } => Expr::var(name.to_string()),
-            TermInner::Lambda { param, body } => {
-                Expr::lambda(param.to_string(), body.clone().into())
-            }
-            TermInner::Apply { func, arg } => Expr::apply(func.clone().into(), arg.clone().into()),
+        enum Work {
+            ConvertTerm(Term),
+            BuildLambda(String),
+            BuildApply,
         }
+
+        let mut work_stack: Vec<Work> = vec![Work::ConvertTerm(term)];
+        let mut result_stack: Vec<Expr> = Vec::new();
+
+        while let Some(work) = work_stack.pop() {
+            match work {
+                Work::ConvertTerm(term) => match term.inner() {
+                    TermInner::Var { name, .. } => {
+                        result_stack.push(Expr::var(name.to_string()));
+                    }
+                    TermInner::Lambda { param, body } => {
+                        work_stack.push(Work::BuildLambda(param.to_string()));
+                        work_stack.push(Work::ConvertTerm(body.clone()));
+                    }
+                    TermInner::Apply { func, arg } => {
+                        work_stack.push(Work::BuildApply);
+                        work_stack.push(Work::ConvertTerm(arg.clone()));
+                        work_stack.push(Work::ConvertTerm(func.clone()));
+                    }
+                },
+                Work::BuildLambda(param) => {
+                    let body = result_stack.pop().expect("Missing body for lambda");
+                    result_stack.push(Expr::lambda(param, body));
+                }
+                Work::BuildApply => {
+                    let arg = result_stack.pop().expect("Missing arg for apply");
+                    let func = result_stack.pop().expect("Missing func for apply");
+                    result_stack.push(Expr::apply(func, arg));
+                }
+            }
+        }
+
+        result_stack
+            .pop()
+            .expect("Conversion should produce exactly one result")
     }
 }
 

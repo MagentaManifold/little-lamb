@@ -8,6 +8,7 @@ pub enum Token {
     LParen,
     RParen,
     Let,
+    Letrec,
     Import,
     From,
     As,
@@ -26,6 +27,7 @@ impl std::fmt::Display for Token {
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::Let => write!(f, "let"),
+            Token::Letrec => write!(f, "letrec"),
             Token::Import => write!(f, "import"),
             Token::From => write!(f, "from"),
             Token::As => write!(f, "as"),
@@ -44,6 +46,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>, extra::Err<Rich
     let lparen = just('(').to(Token::LParen).labelled("(");
     let rparen = just(')').to(Token::RParen).labelled(")");
     let let_kw = keyword("let").to(Token::Let).labelled("let");
+    let letrec_kw = keyword("letrec").to(Token::Letrec).labelled("letrec");
     let import_kw = keyword("import").to(Token::Import).labelled("import");
     let from_kw = keyword("from").to(Token::From).labelled("from");
     let as_kw = keyword("as").to(Token::As).labelled("as");
@@ -66,8 +69,8 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>, extra::Err<Rich
         .labelled("comment");
 
     choice((
-        lambda, dot, lparen, rparen, let_kw, import_kw, from_kw, as_kw, in_kw, equal, comma, ident,
-        natural,
+        lambda, dot, lparen, rparen, let_kw, letrec_kw, import_kw, from_kw, as_kw, in_kw, equal,
+        comma, ident, natural,
     ))
     .padded_by(comment.repeated())
     .padded()
