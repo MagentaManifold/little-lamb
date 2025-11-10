@@ -56,6 +56,24 @@ fn test_desugar_two() {
 }
 
 #[test]
+fn test_desugar_boolean_true() {
+    let src = r"true";
+    let result = parse_and_de_bruijn(src).unwrap();
+    println!("Desugared true: {} -> {}", src, result);
+    let expected = parse_and_de_bruijn(r"\x y. x").unwrap();
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn test_desugar_boolean_false() {
+    let src = r"false";
+    let result = parse_and_de_bruijn(src).unwrap();
+    println!("Desugared false: {} -> {}", src, result);
+    let expected = parse_and_de_bruijn(r"\x y. y").unwrap();
+    assert_eq!(result, expected);
+}
+
+#[test]
 fn test_de_bruijn_identity() {
     // \x. x should become \x. x#0
     let src = r"\x. x";
@@ -212,7 +230,7 @@ test_all_strategies!(
     test_eval_import_as_builtin_boolean,
     |eval_fn: EvalStrategy| {
         let src = r"
-        import true, false, and, or, not in
+        import and, or, not in
         and (or false true) (not true)
     ";
         let term = parse_and_de_bruijn(src).unwrap();

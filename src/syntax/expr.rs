@@ -48,6 +48,25 @@ impl Expr {
             ),
         )
     }
+
+    /// Create a Church numeral natural number expression
+    pub fn nat(num: usize) -> Self {
+        Expr::lambda(
+            "f",
+            Expr::lambda(
+                "x",
+                (0..num).fold(Expr::var("x"), |acc, _| Expr::apply(Expr::var("f"), acc)),
+            ),
+        )
+    }
+
+    /// Create a boolean expression
+    pub fn boolean(b: bool) -> Self {
+        Expr::lambda(
+            "x",
+            Expr::lambda("y", if b { Expr::var("x") } else { Expr::var("y") }),
+        )
+    }
 }
 
 impl Expr {
@@ -64,7 +83,7 @@ impl Expr {
         let Expr::Lambda {
             param: x_param,
             body: x_body,
-        } = &**f_body
+        } = f_body.as_ref()
         else {
             return None;
         };
@@ -94,6 +113,30 @@ impl Expr {
         }
     }
 
+    fn to_boolean(&self) -> Option<bool> {
+        let Expr::Lambda {
+            param: x_param,
+            body: x_body,
+        } = self
+        else {
+            return None;
+        };
+
+        let Expr::Lambda {
+            param: y_param,
+            body: y_body,
+        } = x_body.as_ref()
+        else {
+            return None;
+        };
+
+        match y_body.as_ref() {
+            Expr::Var(name) if name == x_param => Some(true),
+            Expr::Var(name) if name == y_param => Some(false),
+            _ => None,
+        }
+    }
+
     /// Try to recognize this expression as a common function by comparing
     /// against the library files
     pub fn to_lib_function(&self) -> Option<&'static str> {
@@ -119,6 +162,10 @@ impl Expr {
     pub fn try_into_readable_string(&self) -> Option<String> {
         if let Some(n) = self.to_nat() {
             return Some(n.to_string());
+        }
+
+        if let Some(b) = self.to_boolean() {
+            return Some(b.to_string());
         }
 
         if let Some(lib_fn) = self.to_lib_function() {
@@ -270,23 +317,28 @@ mod tests {
     }
 
     #[test]
-    fn test_expr_to_lib_function_k_or_true() {
-        let k_expr = parse_expr(r"\x y. x");
-        assert_eq!(k_expr.to_lib_function(), Some("K"));
-        assert_eq!(k_expr.to_readable_string(), "K");
+    fn test_expr_to_boolean_true() {
+        let true_expr = parse_expr(r"\x y. x");
+        assert_eq!(true_expr.to_boolean(), Some(true));
+        assert_eq!(true_expr.to_readable_string(), "true");
     }
 
     #[test]
-    fn test_expr_to_nat_zero_or_false() {
+    fn test_expr_to_boolean_false() {
+        let false_expr = parse_expr(r"\x y. y");
+        assert_eq!(false_expr.to_boolean(), Some(false));
+    }
+
+    #[test]
+    fn test_expr_to_readable_string_zero() {
         // \x y. y is both Church numeral 0 and false
         // We prioritize the natural number interpretation
         let zero_or_false = parse_expr(r"\x y. y");
-        assert_eq!(zero_or_false.to_nat(), Some(0));
         assert_eq!(zero_or_false.to_readable_string(), "0");
     }
 
     #[test]
-    fn test_expr_regualar_display() {
+    fn test_expr_regular_display() {
         let not_numeral = parse_expr(r"\x y. y x");
         assert_eq!(not_numeral.to_nat(), None);
         assert_eq!(not_numeral.to_readable_string(), "\\x . \\y . y x");

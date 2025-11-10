@@ -8,7 +8,7 @@
 >
 > its fleece was white as snow...
 
-A *"blazingly fast"* lambda calculus interpreter in Rust and Chumsky (a beautiful parser combinator library), using de Bruijn indices and full-reducing Krivine machine (KN) as the default evaluation strategy.
+A *"blazingly fast"* untyped lambda calculus interpreter in Rust and Chumsky (a beautiful parser combinator library), using full-reducing Krivine machine (KN) as the default evaluation strategy.
 
 > [!NOTE]
 > This repo is a toy project and is under active development.
@@ -33,7 +33,7 @@ cargo install --git https://github.com/MagentaManifold/little-lamb
 little-lamb /path/to/your_program.lil
 ```
 
-### Try examples
+### Try out examples
 
 Examples can be found in the `/examples` directory. Some of them don't make much sense.
 
@@ -46,7 +46,9 @@ little-lamb examples/example.lil
 
 ## Syntax
 
-Pretty standard lambda calculus syntax. Indentation and line breaks are ignored.
+Standard-ish lambda calculus syntax with sugars added. Indentation and line breaks are ignored.
+
+Each file represents exactly one expression in untyped lambda calculus.
 
 ### Lambda expressions
 
@@ -114,7 +116,9 @@ in factorial 5
 
 The comma syntax is also supported for multiple recursive bindings, although it's merely a syntax sugar for nested `letrec`s, so mutual recursion is not supported.
 
-### Natural numbers
+### Built-in types
+
+#### Natural numbers
 
 Natural numbers are a syntax sugar for Church numeral encoding.
 
@@ -123,6 +127,16 @@ import add in
 add 2 3
 -- evaluates to \f . \x . f (f (f (f (f x)))),
 -- i.e., 5 in Church numeral encoding
+```
+
+#### Boolean
+
+Boolean values are a syntax sugar for Church encoding of booleans.
+
+```little-lamb
+import and in
+and true false
+-- evaluates to \x . \y . y, i.e., false in Church encoding
 ```
 
 ### Comments
@@ -156,7 +170,7 @@ The import system works as follows:
 Available built-in modules include:
 
 - **Combinators**: `I` (identity), `K` (constant), `S` (substitution), `Y` (fixed point)
-- **Boolean logic**: `true`, `false`, `and`, `or`, `not`, `if`
+- **Boolean logic**: `and`, `or`, `not`, `if`
 - **Pairs**: `pair`, `car`, `cdr`
 - **Arithmetic**: `add`, `mult`, `sub`, `succ` (successor), `pred` (predecessor), `iszero`
 
@@ -210,12 +224,12 @@ I'd be surprised if anyone else would like to work on it, but let me know if you
 
 Roughly in descending order of priority:
 
-- [x] Syntax support for common encodings like booleans (done with importing) and Church numerals.
 - [ ] Syntax support for more structures, like pairs and lists
 - [x] Improve performance
 - [ ] Improve import system: nested directories, better error messages
 - [ ] Support converting results back to primitives and common combinators (not perfect right now, but basically working)
 - [ ] Better error messages  
+- [ ] Support for binary operators
 - [ ] Support step by step evaluation
 - [ ] Support REPL
 - [ ] Add more examples/library functions

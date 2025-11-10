@@ -24,6 +24,11 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
     let ast = recursive(|ast| {
         let var = ident.clone().map(Ast::var);
 
+        let boolean = select! {
+            Token::Boolean(value) => Ast::boolean(value),
+        }
+        .labelled("boolean");
+
         let nat = select! {
             Token::Natural(value) => Ast::nat(value),
         }
@@ -34,7 +39,7 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
             .delimited_by(just(Token::LParen), just(Token::RParen))
             .labelled("parenthesized expression");
 
-        let atom = choice((paren, var, nat));
+        let atom = choice((paren, var, boolean, nat));
 
         let apply = atom
             .clone()

@@ -17,6 +17,7 @@ pub enum Token {
     Equal,
     Ident(String),
     Natural(usize),
+    Boolean(bool),
 }
 
 impl std::fmt::Display for Token {
@@ -36,6 +37,7 @@ impl std::fmt::Display for Token {
             Token::Equal => write!(f, "="),
             Token::Ident(name) => write!(f, "{name}"),
             Token::Natural(value) => write!(f, "{value}"),
+            Token::Boolean(value) => write!(f, "{value}"),
         }
     }
 }
@@ -53,6 +55,9 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>, extra::Err<Rich
     let in_kw = keyword("in").to(Token::In).labelled("in");
     let comma = just(',').to(Token::Comma).labelled(",");
     let equal = just('=').to(Token::Equal).labelled("=");
+    let true_kw = keyword("true").to(Token::Boolean(true)).labelled("true");
+    let false_kw = keyword("false").to(Token::Boolean(false)).labelled("false");
+    let boolean = choice((true_kw, false_kw)).labelled("boolean");
     let ident = text::ascii::ident()
         .map(|s: &str| Token::Ident(s.to_string()))
         .labelled("identifier");
@@ -70,7 +75,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>, extra::Err<Rich
 
     choice((
         lambda, dot, lparen, rparen, let_kw, letrec_kw, import_kw, from_kw, as_kw, in_kw, equal,
-        comma, ident, natural,
+        comma, boolean, ident, natural,
     ))
     .padded_by(comment.repeated())
     .padded()

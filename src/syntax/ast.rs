@@ -2,6 +2,7 @@
 pub enum Ast {
     Var(String),
     Nat(usize),
+    Boolean(bool),
     Lambda {
         param: String,
         body: Box<Ast>,
@@ -36,6 +37,11 @@ impl Ast {
     /// Create a new natural number AST node
     pub fn nat(value: usize) -> Self {
         Ast::Nat(value)
+    }
+
+    /// Create a new boolean AST node
+    pub fn boolean(value: bool) -> Self {
+        Ast::Boolean(value)
     }
 
     /// Create a new lambda AST node

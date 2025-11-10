@@ -130,25 +130,25 @@ impl PartialEq for Term {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::Term as T;
 
     #[test]
     fn test_term_equal() {
-        let t1 = Term::var("x", 0);
-        let t2 = Term::var("y", 0);
-        let t3 = Term::var("x", 1);
+        let t1 = T::var("x", 0);
+        let t2 = T::var("y", 0);
+        let t3 = T::var("x", 1);
         assert_eq!(t1, t2);
         assert_ne!(t1, t3);
 
-        let l1 = Term::lambda("x", Term::var("x", 0));
-        let l2 = Term::lambda("y", Term::var("y", 0));
-        let l3 = Term::lambda("x", Term::var("x", 1));
+        let l1 = T::lambda("x", T::var("x", 0));
+        let l2 = T::lambda("y", T::var("y", 0));
+        let l3 = T::lambda("x", T::var("x", 1));
         assert_eq!(l1, l2);
         assert_ne!(l1, l3);
 
-        let a1 = Term::apply(Term::lambda("x", Term::var("x", 0)), Term::var("y", 0));
-        let a2 = Term::apply(Term::lambda("z", Term::var("z", 0)), Term::var("w", 0));
-        let a3 = Term::apply(Term::lambda("x", Term::var("x", 1)), Term::var("y", 0));
+        let a1 = T::apply(T::lambda("x", T::var("x", 0)), T::var("y", 0));
+        let a2 = T::apply(T::lambda("z", T::var("z", 0)), T::var("w", 0));
+        let a3 = T::apply(T::lambda("x", T::var("x", 1)), T::var("y", 0));
         assert_eq!(a1, a2);
         assert_ne!(a1, a3);
     }

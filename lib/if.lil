@@ -1,2 +1,4 @@
 -- if p then x else y
-\p x y . p x y
+-- \p x y . p x y
+-- which is, well, really just the identity function
+\p . p
