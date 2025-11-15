@@ -94,6 +94,6 @@ impl LexerError {
     }
 }
 
-pub fn tokenize<'src>(src: &str) -> Result<Vec<Token>, LexerError> {
+pub fn tokenize(src: &str) -> Result<Vec<Token>, LexerError> {
     lexer().parse(src).into_result().map_err(LexerError::new)
 }

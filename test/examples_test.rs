@@ -14,17 +14,15 @@ fn test_all_examples() {
 
     // TODO: support nested directories
     if let Ok(entries) = fs::read_dir(examples_dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
+        for entry in entries.flatten() {
+            let path = entry.path();
 
-                if path == errors_dir {
-                    continue;
-                }
+            if path == errors_dir {
+                continue;
+            }
 
-                if path.is_file() && path.extension().map_or(false, |ext| ext == "lil") {
-                    example_files.push(path);
-                }
+            if path.is_file() && path.extension().is_some_and(|ext| ext == "lil") {
+                example_files.push(path);
             }
         }
     }
@@ -40,7 +38,7 @@ fn test_all_examples() {
         println!("Testing example: {}", example_file.display());
 
         let output = Command::new("cargo")
-            .args(&["run", "--", example_file.to_str().unwrap()])
+            .args(["run", "--", example_file.to_str().unwrap()])
             .current_dir(manifest_dir)
             .output()
             .expect("Failed to execute cargo run");

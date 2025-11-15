@@ -141,7 +141,7 @@ mod tests {
         // After substitution, x#1 should be replaced with \z. z, but shifted appropriately
         // The result should be: \y. \z. z
         assert_eq!(result.to_string(), r"\y. \z. z#0");
-        assert_eq!(non_reducing, false);
+        assert!(!non_reducing);
     }
 
     #[test]
@@ -163,6 +163,6 @@ mod tests {
 
         // The parameter reference should be replaced with the argument
         assert_eq!(result.to_string(), r"\y. y#0");
-        assert_eq!(non_reducing, false);
+        assert!(!non_reducing);
     }
 }

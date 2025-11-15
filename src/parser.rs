@@ -22,7 +22,7 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
     .labelled("identifier");
 
     let ast = recursive(|ast| {
-        let var = ident.clone().map(Ast::var);
+        let var = ident.map(Ast::var);
 
         let boolean = select! {
             Token::Boolean(value) => Ast::boolean(value),
@@ -43,11 +43,11 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
 
         let apply = atom
             .clone()
-            .foldl(atom.clone().repeated(), |acc, arg| Ast::apply(acc, arg))
+            .foldl(atom.clone().repeated(), Ast::apply)
             .labelled("application");
 
         let lambda = just(Token::Lambda)
-            .ignore_then(ident.clone().repeated().at_least(1).collect::<Vec<_>>())
+            .ignore_then(ident.repeated().at_least(1).collect::<Vec<_>>())
             .then_ignore(just(Token::Dot))
             .then(ast.clone())
             .map(|(params, body)| {
@@ -58,10 +58,7 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
             })
             .labelled("lambda");
 
-        let assign = ident
-            .clone()
-            .then_ignore(just(Token::Equal))
-            .then(ast.clone());
+        let assign = ident.then_ignore(just(Token::Equal)).then(ast.clone());
 
         let let_binding = just(Token::Let)
             .ignore_then(
@@ -101,11 +98,8 @@ fn parser<'tokens>() -> impl Parser<'tokens, &'tokens [Token], Ast, extra::Err<R
             .labelled("letrec binding");
 
         let import_binding = choice((
-            ident
-                .clone()
-                .then_ignore(just(Token::As))
-                .then(ident.clone()),
-            ident.clone().map(|module| (module.clone(), module)),
+            ident.then_ignore(just(Token::As)).then(ident),
+            ident.map(|module| (module.clone(), module)),
         ));
 
         let import = just(Token::Import)

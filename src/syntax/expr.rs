@@ -147,10 +147,10 @@ impl Expr {
         };
 
         for name in get_lib_function_names() {
-            if let Ok(lib_term) = crate::import::load_lib_function_as_term(name) {
-                if self_term == lib_term {
-                    return Some(name);
-                }
+            if let Ok(lib_term) = crate::import::load_lib_function_as_term(name)
+                && self_term == lib_term
+            {
+                return Some(name);
             }
         }
 

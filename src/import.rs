@@ -158,6 +158,12 @@ fn get_builtin_module_src(file: &Path) -> Result<String, ImportError> {
         })
 }
 
+impl Default for Importer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Get the list of all library function names (without .lil extension)
 pub fn get_lib_function_names() -> Vec<&'static str> {
     LIB_DIR
